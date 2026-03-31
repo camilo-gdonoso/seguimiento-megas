@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronRight, ChevronDown, Building, Users, MapPin, Briefcase } from 'lucide-react';
-import { ORGANIGRAM } from '../constants/organigram.js';
+import { ORGANIGRAM } from '../pages/organigram';
 
 const UnitNode = ({ node, level = 0 }) => {
   const [isOpen, setIsOpen] = useState(level < 2);
