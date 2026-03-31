@@ -2,6 +2,7 @@
   "name": "meubles-erp-backend",
   "version": "1.0.0",
   "description": "Backend for MueblesERP",
+  "type": "commonjs",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
