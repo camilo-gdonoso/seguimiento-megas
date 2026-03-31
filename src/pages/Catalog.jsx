@@ -246,7 +246,15 @@ const Catalog = ({ user }) => {
   const handleOpenModal = (item = null) => {
     if (item) {
       setEditingId(item.id);
-      setFormData({ ...item });
+      // Logic to map database fields to form field names
+      let mappedData = { ...item };
+      
+      // For Products: map ponderacion_total to ponderacion_producto for the shared form
+      if (activeTab === 'productos') {
+        mappedData.ponderacion_producto = item.ponderacion_total;
+      }
+      
+      setFormData(mappedData);
     } else {
       setEditingId(null);
       setFormData({});
@@ -320,6 +328,11 @@ const Catalog = ({ user }) => {
       if (dataToSave.resultado_id) dataToSave.resultado_id = Number(dataToSave.resultado_id);
       if (dataToSave.estrategia_id) dataToSave.estrategia_id = Number(dataToSave.estrategia_id);
       if (dataToSave.unit_id) dataToSave.unit_id = Number(dataToSave.unit_id);
+      
+      // Map back to correct DB column names specifically for Products
+      if (activeTab === 'productos') {
+        dataToSave.ponderacion_total = Number(dataToSave.ponderacion_producto || 0);
+      }
 
       if (editingId) {
         await axios.put(`${API_URL}/${resource}/${editingId}`, dataToSave);
