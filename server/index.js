@@ -1039,84 +1039,77 @@ module.exports.pool = pool;
 // Seed MTEPS Organigram
 const seedUnidades = async () => {
     try {
-        console.log('Starting exhaustive organigram seeding (52 nodes)...');
+        console.log('Running Single-Query Mass Organigram Seed (52 nodes)...');
         
-        const upsert = async (data) => {
-            if (data.id) {
-                return await pool.query(
-                    `INSERT INTO unidades_organizacionales (id, name, type, parent_id) 
-                     VALUES ($1, $2, $3, $4) 
-                     ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, type = EXCLUDED.type, parent_id = EXCLUDED.parent_id
-                     RETURNING id`, [data.id, data.name, data.type, data.parent_id]
-                );
-            } else {
-                return await pool.query(
-                    `INSERT INTO unidades_organizacionales (name, type, parent_id) 
-                     VALUES ($1, $2, $3) 
-                     ON CONFLICT (name) DO UPDATE SET type = EXCLUDED.type, parent_id = EXCLUDED.parent_id
-                     RETURNING id`, [data.name, data.type, data.parent_id]
-                );
-            }
-        };
+        // Use a single transaction/block for performance and atomicity
+        await pool.query(`
+            DO $$ 
+            DECLARE 
+                m_id INT; dgp_id INT; dgaa_id INT; dgaj_id INT; vmtps_id INT; dgthso_id INT; vescc_id INT; dgsc_id INT; j_id INT;
+            BEGIN
+                -- Main Root
+                INSERT INTO unidades_organizacionales (id, name, type) VALUES (1, 'Despacho del Ministro (a) de Trabajo, Empleo y Previsión Social', 'Ministro') ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name RETURNING id INTO m_id;
 
-        // --- NIVEL DIRECTIVO ---
-        const m = (await upsert({ id: 1, name: 'Despacho del Ministro (a) de Trabajo, Empleo y Previsión Social', type: 'Ministro' })).rows[0].id;
+                -- Level 1 (Direct to Ministro)
+                INSERT INTO unidades_organizacionales (id, name, type, parent_id) VALUES 
+                (2, 'Jefatura de Gabinete', 'Unidad', m_id),
+                (3, 'Unidad de Comunicación', 'Unidad', m_id),
+                (4, 'Unidad de Auditoría Interna', 'Unidad', m_id),
+                (5, 'Unidad de Transparencia y Lucha contra la Corrupción', 'Unidad', m_id)
+                ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, parent_id = EXCLUDED.parent_id;
 
-        // Operativo
-        await upsert({ id: 2, name: 'Jefatura de Gabinete', type: 'Unidad', parent_id: m });
-        await upsert({ id: 3, name: 'Unidad de Comunicación', type: 'Unidad', parent_id: m });
-        await upsert({ id: 4, name: 'Unidad de Auditoría Interna', type: 'Unidad', parent_id: m });
-        await upsert({ id: 5, name: 'Unidad de Transparencia y Lucha contra la Corrupción', type: 'Unidad', parent_id: m });
+                -- Ejecutivo Sector
+                INSERT INTO unidades_organizacionales (id, name, type, parent_id) VALUES (10, 'Dirección General de Planificación', 'Direccion', m_id) ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name RETURNING id INTO dgp_id;
+                INSERT INTO unidades_organizacionales (name, type, parent_id) VALUES ('Unidad de Tecnologías de la Información y Comunicación', 'Unidad', dgp_id) ON CONFLICT (name) DO UPDATE SET parent_id = EXCLUDED.parent_id;
 
-        // Ejecutivo (Derecha)
-        const dgp = (await upsert({ id: 10, name: 'Dirección General de Planificación', type: 'Direccion', parent_id: m })).rows[0].id;
-        await upsert({ name: 'Unidad de Tecnologías de la Información y Comunicación', type: 'Unidad', parent_id: dgp });
+                INSERT INTO unidades_organizacionales (id, name, type, parent_id) VALUES (20, 'Dirección General de Asuntos Administrativos', 'Direccion', m_id) ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name RETURNING id INTO dgaa_id;
+                INSERT INTO unidades_organizacionales (name, type, parent_id) VALUES ('Unidad Administrativa', 'Unidad', dgaa_id), ('Unidad Financiera', 'Unidad', dgaa_id), ('Unidad de Recursos Humanos', 'Unidad', dgaa_id) ON CONFLICT (name) DO UPDATE SET parent_id = EXCLUDED.parent_id;
 
-        const dgaa = (await upsert({ id: 20, name: 'Dirección General de Asuntos Administrativos', type: 'Direccion', parent_id: m })).rows[0].id;
-        await upsert({ name: 'Unidad Administrativa', type: 'Unidad', parent_id: dgaa });
-        await upsert({ name: 'Unidad Financiera', type: 'Unidad', parent_id: dgaa });
-        await upsert({ name: 'Unidad de Recursos Humanos', type: 'Unidad', parent_id: dgaa });
+                INSERT INTO unidades_organizacionales (id, name, type, parent_id) VALUES (30, 'Dirección General de Asuntos Jurídicos', 'Direccion', m_id) ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name RETURNING id INTO dgaj_id;
+                INSERT INTO unidades_organizacionales (name, type, parent_id) VALUES ('Unidad de Análisis Jurídico', 'Unidad', dgaj_id), ('Unidad de Gestión Jurídica', 'Unidad', dgaj_id) ON CONFLICT (name) DO UPDATE SET parent_id = EXCLUDED.parent_id;
 
-        const dgaj = (await upsert({ id: 30, name: 'Dirección General de Asuntos Jurídicos', type: 'Direccion', parent_id: m })).rows[0].id;
-        await upsert({ name: 'Unidad de Análisis Jurídico', type: 'Unidad', parent_id: dgaj });
-        await upsert({ name: 'Unidad de Gestión Jurídica', type: 'Unidad', parent_id: dgaj });
+                -- Viceministerios
+                INSERT INTO unidades_organizacionales (id, name, type, parent_id) VALUES (100, 'Viceministerio de Trabajo y Previsión Social', 'Viceministerio', m_id) ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name RETURNING id INTO vmtps_id;
+                INSERT INTO unidades_organizacionales (id, name, type, parent_id) VALUES (110, 'Dirección General de Políticas de Previsión Social', 'Direccion', vmtps_id), (120, 'Dirección General de Asuntos Sindicales', 'Direccion', vmtps_id) ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, parent_id = EXCLUDED.parent_id;
+                INSERT INTO unidades_organizacionales (id, name, type, parent_id) VALUES (130, 'Dirección General de Trabajo, Higiene y Seguridad Ocupacional', 'Direccion', vmtps_id) ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name RETURNING id INTO dgthso_id;
+                INSERT INTO unidades_organizacionales (name, type, parent_id) VALUES ('Unidad de Derechos Fundamentales', 'Unidad', dgthso_id) ON CONFLICT (name) DO UPDATE SET parent_id = EXCLUDED.parent_id;
 
-        // Viceministerio de Trabajo y Previsión Social
-        const vmtps = (await upsert({ id: 100, name: 'Viceministerio de Trabajo y Previsión Social', type: 'Viceministerio', parent_id: m })).rows[0].id;
-        await upsert({ id: 110, name: 'Dirección General de Políticas de Previsión Social', type: 'Direccion', parent_id: vmtps });
-        await upsert({ id: 120, name: 'Dirección General de Asuntos Sindicales', type: 'Direccion', parent_id: vmtps });
-        const dgthso = (await upsert({ id: 130, name: 'Dirección General de Trabajo, Higiene y Seguridad Ocupacional', type: 'Direccion', parent_id: vmtps })).rows[0].id;
-        await upsert({ name: 'Unidad de Derechos Fundamentales', type: 'Unidad', parent_id: dgthso });
+                INSERT INTO unidades_organizacionales (id, name, type, parent_id) VALUES (200, 'Viceministerio de Empleo, Servicio Civil y Cooperativas', 'Viceministerio', m_id) ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name RETURNING id INTO vescc_id;
+                INSERT INTO unidades_organizacionales (id, name, type, parent_id) VALUES (210, 'Dirección General de Empleo', 'Direccion', vescc_id), (220, 'Dirección General de Políticas Públicas, Fomento, Protección y Promoción Cooperativa', 'Direccion', vescc_id) ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, parent_id = EXCLUDED.parent_id;
+                INSERT INTO unidades_organizacionales (id, name, type, parent_id) VALUES (230, 'Dirección General del Servicio Civil', 'Direccion', vescc_id) ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name RETURNING id INTO dgsc_id;
+                INSERT INTO unidades_organizacionales (name, type, parent_id) VALUES ('Unidad de Función Pública y Registro Plurinacional', 'Unidad', dgsc_id), ('Unidad de Régimen Laboral e Impugnación', 'Unidad', dgsc_id), ('Unidad de Capacitación, Ética y Desarrollo Normativo', 'Unidad', dgsc_id) ON CONFLICT (name) DO UPDATE SET parent_id = EXCLUDED.parent_id;
 
-        // Viceministerio de Empleo, Servicio Civil y Cooperativas
-        const vescc = (await upsert({ id: 200, name: 'Viceministerio de Empleo, Servicio Civil y Cooperativas', type: 'Viceministerio', parent_id: m })).rows[0].id;
-        await upsert({ id: 210, name: 'Dirección General de Empleo', type: 'Direccion', parent_id: vescc });
-        await upsert({ id: 220, name: 'Dirección General de Políticas Públicas, Fomento, Protección y Promoción Cooperativa', type: 'Direccion', parent_id: vescc });
-        const dgsc = (await upsert({ id: 230, name: 'Dirección General del Servicio Civil', type: 'Direccion', parent_id: vescc })).rows[0].id;
-        await upsert({ name: 'Unidad de Función Pública y Registro Plurinacional', type: 'Unidad', parent_id: dgsc });
-        await upsert({ name: 'Unidad de Régimen Laboral e Impugnación', type: 'Unidad', parent_id: dgsc });
-        await upsert({ name: 'Unidad de Capacitación, Ética y Desarrollo Normativo', type: 'Unidad', parent_id: dgsc });
+                -- Entidad Bajo Tuicion
+                INSERT INTO unidades_organizacionales (id, name, type, parent_id) VALUES (500, 'Autoridad de Fiscalización y Control de Cooperativas - AFCOOP', 'Direccion', m_id) ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name;
 
-        // ENTIDAD BAJO TUICIÓN
-        await upsert({ id: 500, name: 'Autoridad de Fiscalización y Control de Cooperativas - AFCOOP', type: 'Direccion', parent_id: m });
+                -- JEFATURAS (Departamentales y Regionales)
+                INSERT INTO unidades_organizacionales (id, name, type, parent_id) VALUES (301, 'Jefatura Departamental de Trabajo La Paz', 'Jefatura', m_id) ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name RETURNING id INTO j_id;
+                INSERT INTO unidades_organizacionales (name, type, parent_id) VALUES ('Jefatura Regional de Trabajo El Alto', 'Jefatura', j_id) ON CONFLICT (name) DO UPDATE SET parent_id = EXCLUDED.parent_id;
 
-        // JEFATURAS DEPARTAMENTALES
-        const addJef = async (id, name, reg = []) => {
-            const jId = (await upsert({ id, name, type: 'Jefatura', parent_id: m })).rows[0].id;
-            for (const r of reg) { await upsert({ name: r, type: 'Jefatura', parent_id: jId }); }
-        };
+                INSERT INTO unidades_organizacionales (id, name, type, parent_id) VALUES (302, 'Jefatura Departamental de Trabajo Santa Cruz', 'Jefatura', m_id) ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name RETURNING id INTO j_id;
+                INSERT INTO unidades_organizacionales (name, type, parent_id) VALUES ('Jefatura Regional de Trabajo Montero', 'Jefatura', j_id), ('Jefatura Regional de Trabajo Camiri', 'Jefatura', j_id), ('Jefatura Regional de Trabajo Puerto Suárez', 'Jefatura', j_id), ('Jefatura Regional de Trabajo Warnes', 'Jefatura', j_id) ON CONFLICT (name) DO UPDATE SET parent_id = EXCLUDED.parent_id;
 
-        await addJef(301, 'Jefatura Departamental de Trabajo La Paz', ['Jefatura Regional de Trabajo El Alto']);
-        await addJef(302, 'Jefatura Departamental de Trabajo Santa Cruz', ['Jefatura Regional de Trabajo Montero', 'Jefatura Regional de Trabajo Camiri', 'Jefatura Regional de Trabajo Puerto Suárez', 'Jefatura Regional de Trabajo Warnes']);
-        await addJef(303, 'Jefatura Departamental de Trabajo Cochabamba', ['Jefatura Regional de Trabajo Chapare']);
-        await addJef(304, 'Jefatura Departamental de Trabajo Chuquisaca', ['Jefatura Regional de Trabajo Monteagudo']);
-        await addJef(305, 'Jefatura Departamental de Trabajo Oruro');
-        await addJef(306, 'Jefatura Departamental de Trabajo Potosí', ['Jefatura Regional de Trabajo Tupiza', 'Jefatura Regional de Trabajo Villazón', 'Jefatura Regional de Trabajo Llallagua', 'Jefatura Regional de Trabajo Uyuni']);
-        await addJef(307, 'Jefatura Departamental de Trabajo Tarija', ['Jefatura Regional de Trabajo Bermejo', 'Jefatura Regional de Trabajo Yacuiba', 'Jefatura Regional de Trabajo Villamontes']);
-        await addJef(308, 'Jefatura Departamental de Trabajo Beni', ['Jefatura Regional de Trabajo Riberalta', 'Jefatura Regional de Trabajo Guayaramerín']);
-        await addJef(309, 'Jefatura Departamental de Trabajo Pando');
+                INSERT INTO unidades_organizacionales (id, name, type, parent_id) VALUES (303, 'Jefatura Departamental de Trabajo Cochabamba', 'Jefatura', m_id) ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name RETURNING id INTO j_id;
+                INSERT INTO unidades_organizacionales (name, type, parent_id) VALUES ('Jefatura Regional de Trabajo Chapare', 'Jefatura', j_id) ON CONFLICT (name) DO UPDATE SET parent_id = EXCLUDED.parent_id;
 
-        console.log('Organigram SEEDED SUCCESSFULLY (52 nodes confirmed)');
+                INSERT INTO unidades_organizacionales (id, name, type, parent_id) VALUES (304, 'Jefatura Departamental de Trabajo Chuquisaca', 'Jefatura', m_id) ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name RETURNING id INTO j_id;
+                INSERT INTO unidades_organizacionales (name, type, parent_id) VALUES ('Jefatura Regional de Trabajo Monteagudo', 'Jefatura', j_id) ON CONFLICT (name) DO UPDATE SET parent_id = EXCLUDED.parent_id;
+
+                INSERT INTO unidades_organizacionales (id, name, type, parent_id) VALUES (305, 'Jefatura Departamental de Trabajo Oruro', 'Jefatura', m_id) ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name;
+
+                INSERT INTO unidades_organizacionales (id, name, type, parent_id) VALUES (306, 'Jefatura Departamental de Trabajo Potosí', 'Jefatura', m_id) ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name RETURNING id INTO j_id;
+                INSERT INTO unidades_organizacionales (name, type, parent_id) VALUES ('Jefatura Regional de Trabajo Tupiza', 'Jefatura', j_id), ('Jefatura Regional de Trabajo Villazón', 'Jefatura', j_id), ('Jefatura Regional de Trabajo Llallagua', 'Jefatura', j_id), ('Jefatura Regional de Trabajo Uyuni', 'Jefatura', j_id) ON CONFLICT (name) DO UPDATE SET parent_id = EXCLUDED.parent_id;
+
+                INSERT INTO unidades_organizacionales (id, name, type, parent_id) VALUES (307, 'Jefatura Departamental de Trabajo Tarija', 'Jefatura', m_id) ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name RETURNING id INTO j_id;
+                INSERT INTO unidades_organizacionales (name, type, parent_id) VALUES ('Jefatura Regional de Trabajo Bermejo', 'Jefatura', j_id), ('Jefatura Regional de Trabajo Yacuiba', 'Jefatura', j_id), ('Jefatura Regional de Trabajo Villamontes', 'Jefatura', j_id) ON CONFLICT (name) DO UPDATE SET parent_id = EXCLUDED.parent_id;
+
+                INSERT INTO unidades_organizacionales (id, name, type, parent_id) VALUES (308, 'Jefatura Departamental de Trabajo Beni', 'Jefatura', m_id) ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name RETURNING id INTO j_id;
+                INSERT INTO unidades_organizacionales (name, type, parent_id) VALUES ('Jefatura Regional de Trabajo Riberalta', 'Jefatura', j_id), ('Jefatura Regional de Trabajo Guayaramerín', 'Jefatura', j_id) ON CONFLICT (name) DO UPDATE SET parent_id = EXCLUDED.parent_id;
+
+                INSERT INTO unidades_organizacionales (id, name, type, parent_id) VALUES (309, 'Jefatura Departamental de Trabajo Pando', 'Jefatura', m_id) ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name;
+            END $$;
+        `);
+        console.log('Organigram SEEDED SUCCESSFULLY (52 nodes verified with Single Query)');
     } catch (err) {
         console.error('CRITICAL SEEDING ERROR:', err);
     }
