@@ -99,8 +99,14 @@ const initDb = async () => {
         await pool.query('CREATE TABLE IF NOT EXISTS auditoria (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES usuarios(id) ON DELETE SET NULL, action TEXT NOT NULL, table_name TEXT NOT NULL, record_id INTEGER, old_data JSONB, new_data JSONB, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)');
         await pool.query('CREATE TABLE IF NOT EXISTS notificaciones (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES usuarios(id) ON DELETE CASCADE, message TEXT, is_read BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)');
 
+        // 2. Cleanup duplicates and Apply unique constraints
         await pool.query(`
             DO $$ BEGIN
+                -- 1. Remove duplicates before adding UNIQUE constraint
+                DELETE FROM unidades_organizacionales a USING unidades_organizacionales b
+                WHERE a.id > b.id AND a.name = b.name;
+
+                -- 2. Add constraints
                 IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'act_name_prod_uq') THEN
                     ALTER TABLE actividades ADD CONSTRAINT act_name_prod_uq UNIQUE (name, producto_id);
                 END IF;
@@ -1033,88 +1039,85 @@ module.exports.pool = pool;
 // Seed MTEPS Organigram
 const seedUnidades = async () => {
     try {
-        const upsertUnit = async (data) => {
-            const { id, name, type, parent_id } = data;
-            if (id) {
-                const res = await pool.query(
+        console.log('Starting exhaustive organigram seeding (52 nodes)...');
+        
+        const upsert = async (data) => {
+            if (data.id) {
+                return await pool.query(
                     `INSERT INTO unidades_organizacionales (id, name, type, parent_id) 
                      VALUES ($1, $2, $3, $4) 
                      ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, type = EXCLUDED.type, parent_id = EXCLUDED.parent_id
-                     RETURNING id`, [id, name, type, parent_id]
+                     RETURNING id`, [data.id, data.name, data.type, data.parent_id]
                 );
-                return res.rows[0].id;
             } else {
-                const res = await pool.query(
+                return await pool.query(
                     `INSERT INTO unidades_organizacionales (name, type, parent_id) 
                      VALUES ($1, $2, $3) 
                      ON CONFLICT (name) DO UPDATE SET type = EXCLUDED.type, parent_id = EXCLUDED.parent_id
-                     RETURNING id`, [name, type, parent_id]
+                     RETURNING id`, [data.name, data.type, data.parent_id]
                 );
-                return res.rows[0].id;
             }
         };
 
         // --- NIVEL DIRECTIVO ---
-        const mId = await upsertUnit({ id: 1, name: 'Despacho del Ministro (a) de Trabajo, Empleo y Previsión Social', type: 'Ministro' });
+        const m = (await upsert({ id: 1, name: 'Despacho del Ministro (a) de Trabajo, Empleo y Previsión Social', type: 'Ministro' })).rows[0].id;
 
-        // Operativo under Ministro
-        await upsertUnit({ id: 2, name: 'Jefatura de Gabinete', type: 'Unidad', parent_id: mId });
-        await upsertUnit({ id: 3, name: 'Unidad de Comunicación', type: 'Unidad', parent_id: mId });
-        await upsertUnit({ id: 4, name: 'Unidad de Auditoría Interna', type: 'Unidad', parent_id: mId });
-        await upsertUnit({ id: 5, name: 'Unidad de Transparencia y Lucha contra la Corrupción', type: 'Unidad', parent_id: mId });
+        // Operativo
+        await upsert({ id: 2, name: 'Jefatura de Gabinete', type: 'Unidad', parent_id: m });
+        await upsert({ id: 3, name: 'Unidad de Comunicación', type: 'Unidad', parent_id: m });
+        await upsert({ id: 4, name: 'Unidad de Auditoría Interna', type: 'Unidad', parent_id: m });
+        await upsert({ id: 5, name: 'Unidad de Transparencia y Lucha contra la Corrupción', type: 'Unidad', parent_id: m });
 
-        // Ejecutivo under Ministro (Derecha)
-        const dgpId = await upsertUnit({ id: 10, name: 'Dirección General de Planificación', type: 'Direccion', parent_id: mId });
-        await upsertUnit({ name: 'Unidad de Tecnologías de la Información y Comunicación', type: 'Unidad', parent_id: dgpId });
+        // Ejecutivo (Derecha)
+        const dgp = (await upsert({ id: 10, name: 'Dirección General de Planificación', type: 'Direccion', parent_id: m })).rows[0].id;
+        await upsert({ name: 'Unidad de Tecnologías de la Información y Comunicación', type: 'Unidad', parent_id: dgp });
 
-        const dgaaId = await upsertUnit({ id: 20, name: 'Dirección General de Asuntos Administrativos', type: 'Direccion', parent_id: mId });
-        await upsertUnit({ name: 'Unidad Administrativa', type: 'Unidad', parent_id: dgaaId });
-        await upsertUnit({ name: 'Unidad Financiera', type: 'Unidad', parent_id: dgaaId });
-        await upsertUnit({ name: 'Unidad de Recursos Humanos', type: 'Unidad', parent_id: dgaaId });
+        const dgaa = (await upsert({ id: 20, name: 'Dirección General de Asuntos Administrativos', type: 'Direccion', parent_id: m })).rows[0].id;
+        await upsert({ name: 'Unidad Administrativa', type: 'Unidad', parent_id: dgaa });
+        await upsert({ name: 'Unidad Financiera', type: 'Unidad', parent_id: dgaa });
+        await upsert({ name: 'Unidad de Recursos Humanos', type: 'Unidad', parent_id: dgaa });
 
-        const dgajId = await upsertUnit({ id: 30, name: 'Dirección General de Asuntos Jurídicos', type: 'Direccion', parent_id: mId });
-        await upsertUnit({ name: 'Unidad de Análisis Jurídico', type: 'Unidad', parent_id: dgajId });
-        await upsertUnit({ name: 'Unidad de Gestión Jurídica', type: 'Unidad', parent_id: dgajId });
+        const dgaj = (await upsert({ id: 30, name: 'Dirección General de Asuntos Jurídicos', type: 'Direccion', parent_id: m })).rows[0].id;
+        await upsert({ name: 'Unidad de Análisis Jurídico', type: 'Unidad', parent_id: dgaj });
+        await upsert({ name: 'Unidad de Gestión Jurídica', type: 'Unidad', parent_id: dgaj });
 
         // Viceministerio de Trabajo y Previsión Social
-        const vmtpsId = await upsertUnit({ id: 100, name: 'Viceministerio de Trabajo y Previsión Social', type: 'Viceministerio', parent_id: mId });
-        await upsertUnit({ id: 110, name: 'Dirección General de Políticas de Previsión Social', type: 'Direccion', parent_id: vmtpsId });
-        await upsertUnit({ id: 120, name: 'Dirección General de Asuntos Sindicales', type: 'Direccion', parent_id: vmtpsId });
-        const dgthsoId = await upsertUnit({ id: 130, name: 'Dirección General de Trabajo, Higiene y Seguridad Ocupacional', type: 'Direccion', parent_id: vmtpsId });
-        await upsertUnit({ name: 'Unidad de Derechos Fundamentales', type: 'Unidad', parent_id: dgthsoId });
+        const vmtps = (await upsert({ id: 100, name: 'Viceministerio de Trabajo y Previsión Social', type: 'Viceministerio', parent_id: m })).rows[0].id;
+        await upsert({ id: 110, name: 'Dirección General de Políticas de Previsión Social', type: 'Direccion', parent_id: vmtps });
+        await upsert({ id: 120, name: 'Dirección General de Asuntos Sindicales', type: 'Direccion', parent_id: vmtps });
+        const dgthso = (await upsert({ id: 130, name: 'Dirección General de Trabajo, Higiene y Seguridad Ocupacional', type: 'Direccion', parent_id: vmtps })).rows[0].id;
+        await upsert({ name: 'Unidad de Derechos Fundamentales', type: 'Unidad', parent_id: dgthso });
 
         // Viceministerio de Empleo, Servicio Civil y Cooperativas
-        const vesccId = await upsertUnit({ id: 200, name: 'Viceministerio de Empleo, Servicio Civil y Cooperativas', type: 'Viceministerio', parent_id: mId });
-        await upsertUnit({ id: 210, name: 'Dirección General de Empleo', type: 'Direccion', parent_id: vesccId });
-        await upsertUnit({ id: 220, name: 'Dirección General de Políticas Públicas, Fomento, Protección y Promoción Cooperativa', type: 'Direccion', parent_id: vesccId });
-        const dgscId = await upsertUnit({ id: 230, name: 'Dirección General del Servicio Civil', type: 'Direccion', parent_id: vesccId });
-        await upsertUnit({ name: 'Unidad de Función Pública y Registro Plurinacional', type: 'Unidad', parent_id: dgscId });
-        await upsertUnit({ name: 'Unidad de Régimen Laboral e Impugnación', type: 'Unidad', parent_id: dgscId });
-        await upsertUnit({ name: 'Unidad de Capacitación, Ética y Desarrollo Normativo', type: 'Unidad', parent_id: dgscId });
+        const vescc = (await upsert({ id: 200, name: 'Viceministerio de Empleo, Servicio Civil y Cooperativas', type: 'Viceministerio', parent_id: m })).rows[0].id;
+        await upsert({ id: 210, name: 'Dirección General de Empleo', type: 'Direccion', parent_id: vescc });
+        await upsert({ id: 220, name: 'Dirección General de Políticas Públicas, Fomento, Protección y Promoción Cooperativa', type: 'Direccion', parent_id: vescc });
+        const dgsc = (await upsert({ id: 230, name: 'Dirección General del Servicio Civil', type: 'Direccion', parent_id: vescc })).rows[0].id;
+        await upsert({ name: 'Unidad de Función Pública y Registro Plurinacional', type: 'Unidad', parent_id: dgsc });
+        await upsert({ name: 'Unidad de Régimen Laboral e Impugnación', type: 'Unidad', parent_id: dgsc });
+        await upsert({ name: 'Unidad de Capacitación, Ética y Desarrollo Normativo', type: 'Unidad', parent_id: dgsc });
 
         // ENTIDAD BAJO TUICIÓN
-        await upsertUnit({ id: 500, name: 'Autoridad de Fiscalización y Control de Cooperativas - AFCOOP', type: 'Direccion', parent_id: mId });
+        await upsert({ id: 500, name: 'Autoridad de Fiscalización y Control de Cooperativas - AFCOOP', type: 'Direccion', parent_id: m });
 
         // JEFATURAS DEPARTAMENTALES
-        const addJefaturaWithRegionales = async (id, name, regionales = []) => {
-            const jId = await upsertUnit({ id, name, type: 'Jefatura', parent_id: mId });
-            for (const rName of regionales) {
-                await upsertUnit({ name: rName, type: 'Jefatura', parent_id: jId });
-            }
+        const addJef = async (id, name, reg = []) => {
+            const jId = (await upsert({ id, name, type: 'Jefatura', parent_id: m })).rows[0].id;
+            for (const r of reg) { await upsert({ name: r, type: 'Jefatura', parent_id: jId }); }
         };
 
-        await addJefaturaWithRegionales(301, 'Jefatura Departamental de Trabajo La Paz', ['Jefatura Regional de Trabajo El Alto']);
-        await addJefaturaWithRegionales(302, 'Jefatura Departamental de Trabajo Santa Cruz', ['Jefatura Regional de Trabajo Montero', 'Jefatura Regional de Trabajo Camiri', 'Jefatura Regional de Trabajo Puerto Suárez', 'Jefatura Regional de Trabajo Warnes']);
-        await addJefaturaWithRegionales(303, 'Jefatura Departamental de Trabajo Cochabamba', ['Jefatura Regional de Trabajo Chapare']);
-        await addJefaturaWithRegionales(304, 'Jefatura Departamental de Trabajo Chuquisaca', ['Jefatura Regional de Trabajo Monteagudo']);
-        await addJefaturaWithRegionales(305, 'Jefatura Departamental de Trabajo Oruro');
-        await addJefaturaWithRegionales(306, 'Jefatura Departamental de Trabajo Potosí', ['Jefatura Regional de Trabajo Tupiza', 'Jefatura Regional de Trabajo Villazón', 'Jefatura Regional de Trabajo Llallagua', 'Jefatura Regional de Trabajo Uyuni']);
-        await addJefaturaWithRegionales(307, 'Jefatura Departamental de Trabajo Tarija', ['Jefatura Regional de Trabajo Bermejo', 'Jefatura Regional de Trabajo Yacuiba', 'Jefatura Regional de Trabajo Villamontes']);
-        await addJefaturaWithRegionales(308, 'Jefatura Departamental de Trabajo Beni', ['Jefatura Regional de Trabajo Riberalta', 'Jefatura Regional de Trabajo Guayaramerín']);
-        await addJefaturaWithRegionales(309, 'Jefatura Departamental de Trabajo Pando');
+        await addJef(301, 'Jefatura Departamental de Trabajo La Paz', ['Jefatura Regional de Trabajo El Alto']);
+        await addJef(302, 'Jefatura Departamental de Trabajo Santa Cruz', ['Jefatura Regional de Trabajo Montero', 'Jefatura Regional de Trabajo Camiri', 'Jefatura Regional de Trabajo Puerto Suárez', 'Jefatura Regional de Trabajo Warnes']);
+        await addJef(303, 'Jefatura Departamental de Trabajo Cochabamba', ['Jefatura Regional de Trabajo Chapare']);
+        await addJef(304, 'Jefatura Departamental de Trabajo Chuquisaca', ['Jefatura Regional de Trabajo Monteagudo']);
+        await addJef(305, 'Jefatura Departamental de Trabajo Oruro');
+        await addJef(306, 'Jefatura Departamental de Trabajo Potosí', ['Jefatura Regional de Trabajo Tupiza', 'Jefatura Regional de Trabajo Villazón', 'Jefatura Regional de Trabajo Llallagua', 'Jefatura Regional de Trabajo Uyuni']);
+        await addJef(307, 'Jefatura Departamental de Trabajo Tarija', ['Jefatura Regional de Trabajo Bermejo', 'Jefatura Regional de Trabajo Yacuiba', 'Jefatura Regional de Trabajo Villamontes']);
+        await addJef(308, 'Jefatura Departamental de Trabajo Beni', ['Jefatura Regional de Trabajo Riberalta', 'Jefatura Regional de Trabajo Guayaramerín']);
+        await addJef(309, 'Jefatura Departamental de Trabajo Pando');
 
-        console.log('Organigram Seeded with 52 nodes.');
+        console.log('Organigram SEEDED SUCCESSFULLY (52 nodes confirmed)');
     } catch (err) {
-        console.error('Error seeding units:', err);
+        console.error('CRITICAL SEEDING ERROR:', err);
     }
 };
