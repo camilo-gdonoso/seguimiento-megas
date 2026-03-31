@@ -537,14 +537,14 @@ app.get('/api/dashboard-stats', async (req, res) => {
 
         if (role === 'Tecnico') {
             taskFilter = `WHERE user_id = ${safeUserId}`;
-            megaFilter = `WHERE unit_id IN (SELECT unit_id FROM usuarios WHERE id = ${safeUserId}) OR id IN (SELECT mega_id FROM productos_intermedios p JOIN actividades a ON a.producto_id = p.id JOIN tareas t ON t.actividad_id = a.id WHERE t.user_id = ${safeUserId})`;
+            megaFilter = `WHERE m.unit_id IN (SELECT unit_id FROM usuarios WHERE id = ${safeUserId}) OR m.id IN (SELECT mega_id FROM productos_intermedios p JOIN actividades a ON a.producto_id = p.id JOIN tareas t ON t.actividad_id = a.id WHERE t.user_id = ${safeUserId})`;
         } else if (role === 'Director') {
             taskFilter = `WHERE director_id = ${safeUserId}`;
-            megaFilter = `WHERE unit_id IN (SELECT unit_id FROM usuarios WHERE id = ${safeUserId}) OR unit_id IS NULL OR id IN (SELECT mega_id FROM productos_intermedios p JOIN actividades a ON a.producto_id = p.id JOIN tareas t ON t.actividad_id = a.id WHERE t.director_id = ${safeUserId})`;
+            megaFilter = `WHERE m.unit_id IN (SELECT unit_id FROM usuarios WHERE id = ${safeUserId}) OR m.unit_id IS NULL OR m.id IN (SELECT mega_id FROM productos_intermedios p JOIN actividades a ON a.producto_id = p.id JOIN tareas t ON t.actividad_id = a.id WHERE t.director_id = ${safeUserId})`;
         }
 
-        const megasProgress = await pool.query(`SELECT code, name, avance_fisico as progress FROM megas ${megaFilter} ORDER BY avance_fisico DESC LIMIT 8`);
-        const globalProgress = await pool.query(`SELECT COALESCE(AVG(avance_fisico), 0) as global FROM megas ${megaFilter}`);
+        const megasProgress = await pool.query(`SELECT m.code, m.name, m.avance_fisico as progress FROM megas m ${megaFilter.replace('m.', '')} ORDER BY m.avance_fisico DESC LIMIT 8`);
+        const globalProgress = await pool.query(`SELECT COALESCE(AVG(m.avance_fisico), 0) as global FROM megas m ${megaFilter.replace('m.', '')}`);
 
         const semaphores = await pool.query(`
             SELECT 
@@ -573,7 +573,7 @@ app.get('/api/dashboard-stats', async (req, res) => {
             SELECT u.name, COALESCE(AVG(m.avance_fisico), 0) as progress
             FROM unidades_organizacionales u
             JOIN megas m ON m.unit_id = u.id
-            WHERE u.type = 'Unidad' OR u.type = 'Jefatura'
+            WHERE (u.type = 'Unidad' OR u.type = 'Jefatura')
             ${megaFilter ? ' AND ' + megaFilter.replace('WHERE ', '') : ''}
             GROUP BY u.name
             LIMIT 10
