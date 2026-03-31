@@ -59,6 +59,17 @@ const pool = new Pool({
     ssl: process.env.DATABASE_URL?.includes('neon.tech') ? { rejectUnauthorized: false } : false
 });
 
+// --- Audit Logger ---
+const logAudit = async (userId, action, tableName, recordId, oldData = null, newData = null) => {
+    try {
+        await pool.query(
+            'INSERT INTO auditoria (user_id, action, table_name, record_id, old_data, new_data) VALUES ($1, $2, $3, $4, $5, $6)',
+            [userId, action, tableName, recordId, oldData, newData]
+        );
+    } catch (err) {
+        console.error('Audit Log Error:', err);
+    }
+};
 
 
 // Initialize MeGAs DB Tables
