@@ -312,10 +312,18 @@ const Catalog = ({ user }) => {
         }
       }
       const resource = resourceMap[activeTab];
+      const dataToSave = { ...formData };
+      
+      // Force conversion of relational IDs to Numbers before saving
+      if (dataToSave.eje_id) dataToSave.eje_id = Number(dataToSave.eje_id);
+      if (dataToSave.resultado_id) dataToSave.resultado_id = Number(dataToSave.resultado_id);
+      if (dataToSave.estrategia_id) dataToSave.estrategia_id = Number(dataToSave.estrategia_id);
+      if (dataToSave.unit_id) dataToSave.unit_id = Number(dataToSave.unit_id);
+
       if (editingId) {
-        await axios.put(`${API_URL}/${resource}/${editingId}`, formData);
+        await axios.put(`${API_URL}/${resource}/${editingId}`, dataToSave);
       } else {
-        await axios.post(`${API_URL}/${resource}`, formData);
+        await axios.post(`${API_URL}/${resource}`, dataToSave);
       }
       setIsModalOpen(false);
       fetchData();
@@ -523,7 +531,7 @@ const Catalog = ({ user }) => {
                   {activeTab === 'resultados' && (
                     <td style={{ padding: '1.25rem', fontSize: '0.85rem', color: '#64748b' }}>
                       <span style={{ background: '#fef3c7', padding: '0.2rem 0.6rem', borderRadius: '4px', fontWeight: 700, color: '#92400e' }}>
-                        {ejes.find(e => Number(e.id) === Number(item.eje_id))?.code || '---'}
+                         {ejes.find(e => Number(e.id) === Number(item.eje_id))?.code || '---'} {item.eje_id ? `(${item.eje_id})` : ''}
                       </span>
                     </td>
                   )}
