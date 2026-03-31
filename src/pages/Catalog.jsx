@@ -280,9 +280,14 @@ const Catalog = ({ user }) => {
     const tipo = contextData.tipo_avance || 'Semanal';
     
     if (tipo === 'Semanal') {
-      const diffTime = Math.abs(e - s);
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      periods = Math.max(1, Math.ceil(diffDays / 7));
+      let cur = new Date(s);
+      // Ensure we start from the beginning of the range and count weeks correctly
+      while (cur <= e) {
+        periods++;
+        // Move to the next week (7 days)
+        cur.setDate(cur.getDate() + 7);
+      }
+      periods = Math.max(1, periods);
     } else {
       let cur = new Date(s);
       while (cur <= e) {
