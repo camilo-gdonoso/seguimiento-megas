@@ -70,9 +70,13 @@ const initDb = async () => {
         await pool.query('CREATE TABLE IF NOT EXISTS ejes (id SERIAL PRIMARY KEY, code TEXT NOT NULL UNIQUE, description TEXT NOT NULL)');
         await pool.query('CREATE TABLE IF NOT EXISTS resultados (id SERIAL PRIMARY KEY, code TEXT NOT NULL UNIQUE, description TEXT NOT NULL, eje_id INTEGER REFERENCES ejes(id) ON DELETE CASCADE)');
         await pool.query('CREATE TABLE IF NOT EXISTS estrategias (id SERIAL PRIMARY KEY, code TEXT NOT NULL UNIQUE, description TEXT NOT NULL, resultado_id INTEGER REFERENCES resultados(id) ON DELETE CASCADE)');
-        await pool.query('CREATE TABLE IF NOT EXISTS megas (id SERIAL PRIMARY KEY, code TEXT NOT NULL UNIQUE, name TEXT NOT NULL, estrategia_id INTEGER REFERENCES estrategias(id) ON DELETE CASCADE, unit_id INTEGER REFERENCES unidades_organizacionales(id) ON DELETE SET NULL, period TEXT DEFAULT \'2026-2030\', avance_fisico DECIMAL(5,2) DEFAULT 0.00)');
+        await pool.query('CREATE TABLE IF NOT EXISTS megas (id SERIAL PRIMARY KEY, code TEXT NOT NULL UNIQUE, name TEXT NOT NULL, estrategia_id INTEGER REFERENCES estrategias(id) ON DELETE CASCADE, unit_id INTEGER REFERENCES unidades_organizacionales(id) ON DELETE SET NULL, period TEXT DEFAULT \'2026-2030\', avance_fisico DECIMAL(5,2) DEFAULT 0.00, fecha_inicio DATE, fecha_fin DATE)');
         
-        // --- Patches: Add missing columns if they don't exist ---
+        await pool.query('CREATE TABLE IF NOT EXISTS productos_intermedios (id SERIAL PRIMARY KEY, code TEXT UNIQUE, name TEXT NOT NULL, mega_id INTEGER REFERENCES megas(id) ON DELETE CASCADE, ponderacion_total DECIMAL(5,2) DEFAULT 100.00, avance_fisico DECIMAL(5,2) DEFAULT 0.00, fecha_inicio DATE, fecha_fin DATE, UNIQUE(name, mega_id))');
+        
+        await pool.query('CREATE TABLE IF NOT EXISTS actividades (id SERIAL PRIMARY KEY, code TEXT UNIQUE, name TEXT NOT NULL, producto_id INTEGER REFERENCES productos_intermedios(id) ON DELETE CASCADE, fecha_inicio DATE, fecha_fin DATE)');
+
+        // --- Patches: Add missing columns for existing deployments ---
         await pool.query(`
             ALTER TABLE megas ADD COLUMN IF NOT EXISTS fecha_inicio DATE;
             ALTER TABLE megas ADD COLUMN IF NOT EXISTS fecha_fin DATE;
@@ -81,9 +85,6 @@ const initDb = async () => {
             ALTER TABLE actividades ADD COLUMN IF NOT EXISTS fecha_inicio DATE;
             ALTER TABLE actividades ADD COLUMN IF NOT EXISTS fecha_fin DATE;
         `);
-
-        await pool.query('CREATE TABLE IF NOT EXISTS productos_intermedios (id SERIAL PRIMARY KEY, code TEXT UNIQUE, name TEXT NOT NULL, mega_id INTEGER REFERENCES megas(id) ON DELETE CASCADE, ponderacion_total DECIMAL(5,2) DEFAULT 100.00, avance_fisico DECIMAL(5,2) DEFAULT 0.00, UNIQUE(name, mega_id))');
-        await pool.query('CREATE TABLE IF NOT EXISTS actividades (id SERIAL PRIMARY KEY, code TEXT UNIQUE, name TEXT NOT NULL, producto_id INTEGER REFERENCES productos_intermedios(id) ON DELETE CASCADE)');
         await pool.query(`CREATE TABLE IF NOT EXISTS tareas (
             id SERIAL PRIMARY KEY, 
             code TEXT UNIQUE, 
