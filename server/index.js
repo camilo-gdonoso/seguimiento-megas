@@ -540,7 +540,7 @@ app.get('/api/dashboard-stats', async (req, res) => {
             megaFilter = `WHERE unit_id IN (SELECT unit_id FROM usuarios WHERE id = ${safeUserId}) OR id IN (SELECT mega_id FROM productos_intermedios p JOIN actividades a ON a.producto_id = p.id JOIN tareas t ON t.actividad_id = a.id WHERE t.user_id = ${safeUserId})`;
         } else if (role === 'Director') {
             taskFilter = `WHERE t.director_id = ${safeUserId}`;
-            megaFilter = `WHERE unit_id IN (SELECT unit_id FROM usuarios WHERE id = ${safeUserId}) OR id IN (SELECT mega_id FROM productos_intermedios p JOIN actividades a ON a.producto_id = p.id JOIN tareas t ON t.actividad_id = a.id WHERE t.director_id = ${safeUserId})`;
+            megaFilter = `WHERE unit_id IN (SELECT unit_id FROM usuarios WHERE id = ${safeUserId}) OR unit_id IS NULL OR id IN (SELECT mega_id FROM productos_intermedios p JOIN actividades a ON a.producto_id = p.id JOIN tareas t ON t.actividad_id = a.id WHERE t.director_id = ${safeUserId})`;
         }
 
         const megasProgress = await pool.query(`SELECT code, name, avance_fisico as progress FROM megas ${megaFilter} ORDER BY avance_fisico DESC LIMIT 8`);
