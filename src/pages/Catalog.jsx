@@ -522,14 +522,14 @@ const Catalog = ({ user }) => {
                   {activeTab === 'resultados' && (
                     <td style={{ padding: '1.25rem', fontSize: '0.85rem', color: '#64748b' }}>
                       <span style={{ background: '#fef3c7', padding: '0.2rem 0.6rem', borderRadius: '4px', fontWeight: 700, color: '#92400e' }}>
-                        {item.eje_code || '---'}
+                        {ejes.find(e => e.id === item.eje_id)?.code || '---'}
                       </span>
                     </td>
                   )}
                   {activeTab === 'estrategias' && (
                     <td style={{ padding: '1.25rem', fontSize: '0.85rem', color: '#64748b' }}>
                       <span style={{ background: '#e0f2fe', padding: '0.2rem 0.6rem', borderRadius: '4px', fontWeight: 700, color: '#0369a1' }}>
-                        {item.resultado_code || '---'}
+                        {resultados.find(r => r.id === item.resultado_id)?.code || '---'}
                       </span>
                     </td>
                   )}
