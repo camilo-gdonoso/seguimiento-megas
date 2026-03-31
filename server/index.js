@@ -34,13 +34,15 @@ app.use(async (req, res, next) => {
                 ON CONFLICT (username) DO NOTHING;
             `);
 
-            // Check if full organigram exists, if not, wait for full init
-            const count = await pool.query('SELECT COUNT(*) FROM unidades_organizacionales');
-            if (parseInt(count.rows[0].count) < 10) {
-                console.log('Triggering Full Database Init...');
+            // Check if full organigram and MeGAs exist, if not, wait for full init
+            const unitCount = await pool.query('SELECT COUNT(*) FROM unidades_organizacionales');
+            const megaCount = await pool.query('SELECT COUNT(*) FROM megas');
+            
+            if (parseInt(unitCount.rows[0].count) < 20 || parseInt(megaCount.rows[0].count) === 0) {
+                console.log('Database looks empty or incomplete (Units: %s, MeGAs: %s). Triggering Full Init...', unitCount.rows[0].count, megaCount.rows[0].count);
                 await initDb();
             } else {
-                // background check for small updates
+                // background check for small updates / repairs
                 initDb().catch(err => console.error('Background init error:', err));
             }
             
@@ -1028,17 +1030,17 @@ module.exports.pool = pool;
 // Seed MTEPS Organigram
 // Seed MTEPS Organigram
 const seedUnidades = async () => {
-    const count = await pool.query('SELECT COUNT(*) FROM unidades_organizacionales');
-    if (parseInt(count.rows[0].count) === 0) {
+    // We remove the count check to ensure all 52 nodes are present via ON CONFLICT
+    try {
         // --- NIVEL DIRECTIVO ---
-        const ministro = await pool.query("INSERT INTO unidades_organizacionales (id, name, type) VALUES (1, 'Despacho del Ministro (a) de Trabajo, Empleo y Previsión Social', 'Ministro') RETURNING id");
-        const mId = ministro.rows[0].id;
+        const ministro = await pool.query("INSERT INTO unidades_organizacionales (id, name, type) VALUES (1, 'Despacho del Ministro (a) de Trabajo, Empleo y Previsión Social', 'Ministro') ON CONFLICT (id) DO NOTHING RETURNING id");
+        const mId = ministro.rows.length > 0 ? ministro.rows[0].id : 1;
 
-        // Operativo under Ministro (Izquierda)
-        await pool.query("INSERT INTO unidades_organizacionales (name, type, parent_id) VALUES ('Jefatura de Gabinete', 'Unidad', $1)", [mId]);
-        await pool.query("INSERT INTO unidades_organizacionales (name, type, parent_id) VALUES ('Unidad de Comunicación', 'Unidad', $1)", [mId]);
-        await pool.query("INSERT INTO unidades_organizacionales (name, type, parent_id) VALUES ('Unidad de Auditoría Interna', 'Unidad', $1)", [mId]);
-        await pool.query("INSERT INTO unidades_organizacionales (name, type, parent_id) VALUES ('Unidad de Transparencia y Lucha contra la Corrupción', 'Unidad', $1)", [mId]);
+        // Operativo under Ministro
+        await pool.query("INSERT INTO unidades_organizacionales (id, name, type, parent_id) VALUES (2, 'Jefatura de Gabinete', 'Unidad', $1) ON CONFLICT (id) DO NOTHING", [mId]);
+        await pool.query("INSERT INTO unidades_organizacionales (id, name, type, parent_id) VALUES (3, 'Unidad de Comunicación', 'Unidad', $1) ON CONFLICT (id) DO NOTHING", [mId]);
+        await pool.query("INSERT INTO unidades_organizacionales (id, name, type, parent_id) VALUES (4, 'Unidad de Auditoría Interna', 'Unidad', $1) ON CONFLICT (id) DO NOTHING", [mId]);
+        await pool.query("INSERT INTO unidades_organizacionales (id, name, type, parent_id) VALUES (5, 'Unidad de Transparencia y Lucha contra la Corrupción', 'Unidad', $1) ON CONFLICT (id) DO NOTHING", [mId]);
 
         // Ejecutivo under Ministro (Derecha)
         const planif = await pool.query("INSERT INTO unidades_organizacionales (id, name, type, parent_id) VALUES (10, 'Dirección General de Planificación', 'Direccion', $1) RETURNING id", [mId]);
@@ -1094,5 +1096,7 @@ const seedUnidades = async () => {
         await addJefatura(307, 'Jefatura Departamental de Trabajo Tarija', mId, ['Jefatura Regional de Trabajo Bermejo', 'Jefatura Regional de Trabajo Yacuiba', 'Jefatura Regional de Trabajo Villamontes']);
         await addJefatura(308, 'Jefatura Departamental de Trabajo Beni', mId, ['Jefatura Regional de Trabajo Riberalta', 'Jefatura Regional de Trabajo Guayaramerín']);
         await addJefatura(309, 'Jefatura Departamental de Trabajo Pando', mId);
+    } catch (err) {
+        console.error('Error seeding units:', err);
     }
 };
