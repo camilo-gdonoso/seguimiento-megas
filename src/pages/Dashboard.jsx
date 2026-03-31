@@ -31,7 +31,11 @@ const Dashboard = ({ user }) => {
       const response = await axios.get(`${API_URL}/dashboard-stats`, {
         params: { userId: user?.id, role: user?.role }
       });
-      setStats(response.data);
+      if (response.data && response.data.semaphores) {
+        setStats(response.data);
+      } else {
+        console.warn('Dashboard stats returned incomplete data:', response.data);
+      }
     } catch (err) {
       console.error('Error fetching dashboard stats:', err);
     } finally {

@@ -4,37 +4,10 @@ const cors = require('cors');
 require('dotenv').config();
 
 const app = express();
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
-
-// Ensure uploads directory exists
-const uploadDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+const port = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
-app.use('/uploads', express.static(uploadDir));
-
-// --- Multer Configuration ---
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => cb(null, uploadDir),
-    filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, uniqueSuffix + path.extname(file.originalname));
-    }
-});
-const upload = multer({ 
-    storage: storage,
-    limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
-});
-
-// --- Upload Route ---
-app.post('/api/upload', upload.single('file'), (req, res) => {
-    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-    const fileUrl = `/uploads/${req.file.filename}`;
-    res.json({ url: fileUrl, filename: req.file.originalname });
-});
 
 // Middleware for Vercel initialization - MUST BE AT THE TOP
 let isDbInitialized = false;
@@ -53,7 +26,7 @@ app.use(async (req, res, next) => {
                     unit_id INTEGER
                 );
             `);
-            
+
             // Seed Admin if not exists
             await pool.query(`
                 INSERT INTO usuarios (username, password, role, fullname, unit_id) 
@@ -64,7 +37,7 @@ app.use(async (req, res, next) => {
             // Check if full organigram and MeGAs exist, if not, wait for full init
             const unitCount = await pool.query('SELECT COUNT(*) FROM unidades_organizacionales');
             const megaCount = await pool.query('SELECT COUNT(*) FROM megas');
-            
+
             if (parseInt(unitCount.rows[0].count) < 20 || parseInt(megaCount.rows[0].count) === 0) {
                 console.log('Database looks empty or incomplete (Units: %s, MeGAs: %s). Triggering Full Init...', unitCount.rows[0].count, megaCount.rows[0].count);
                 await initDb();
@@ -72,7 +45,7 @@ app.use(async (req, res, next) => {
                 // background check for small updates / repairs
                 initDb().catch(err => console.error('Background init error:', err));
             }
-            
+
             isDbInitialized = true;
         } catch (err) {
             console.error('Critical initialization error:', err);
@@ -98,9 +71,9 @@ const initDb = async () => {
         await pool.query('CREATE TABLE IF NOT EXISTS resultados (id SERIAL PRIMARY KEY, code TEXT NOT NULL UNIQUE, description TEXT NOT NULL, eje_id INTEGER REFERENCES ejes(id) ON DELETE CASCADE)');
         await pool.query('CREATE TABLE IF NOT EXISTS estrategias (id SERIAL PRIMARY KEY, code TEXT NOT NULL UNIQUE, description TEXT NOT NULL, resultado_id INTEGER REFERENCES resultados(id) ON DELETE CASCADE)');
         await pool.query('CREATE TABLE IF NOT EXISTS megas (id SERIAL PRIMARY KEY, code TEXT NOT NULL UNIQUE, name TEXT NOT NULL, estrategia_id INTEGER REFERENCES estrategias(id) ON DELETE CASCADE, unit_id INTEGER REFERENCES unidades_organizacionales(id) ON DELETE SET NULL, period TEXT DEFAULT \'2026-2030\', avance_fisico DECIMAL(5,2) DEFAULT 0.00, fecha_inicio DATE, fecha_fin DATE)');
-        
+
         await pool.query('CREATE TABLE IF NOT EXISTS productos_intermedios (id SERIAL PRIMARY KEY, code TEXT UNIQUE, name TEXT NOT NULL, mega_id INTEGER REFERENCES megas(id) ON DELETE CASCADE, ponderacion_total DECIMAL(5,2) DEFAULT 100.00, avance_fisico DECIMAL(5,2) DEFAULT 0.00, fecha_inicio DATE, fecha_fin DATE, UNIQUE(name, mega_id))');
-        
+
         await pool.query('CREATE TABLE IF NOT EXISTS actividades (id SERIAL PRIMARY KEY, code TEXT UNIQUE, name TEXT NOT NULL, producto_id INTEGER REFERENCES productos_intermedios(id) ON DELETE CASCADE, fecha_inicio DATE, fecha_fin DATE)');
 
         // --- Patches: Add missing columns for existing deployments ---
@@ -160,7 +133,7 @@ const initDb = async () => {
 
         // 3. Seed Basic Data (Manual seeding only for organigram)
         // Auto-seed removed to respect manual deletions from the platform.
-        
+
         await pool.query(`
             -- Keep only the core Admin user
             INSERT INTO usuarios (username, password, role, fullname, unit_id) 
@@ -197,7 +170,7 @@ const validateFechasTarea = async (actividadId, fInicio, fFin) => {
         JOIN megas m ON p.mega_id = m.id 
         WHERE a.id = $1
     `, [actividadId]);
-    
+
     if (rows.length > 0) {
         const { m_inicio, m_fin, m_code } = rows[0];
         if (m_inicio && fInicio && new Date(fInicio) < new Date(m_inicio)) {
@@ -218,7 +191,7 @@ const registerCrud = (resource, tableName) => {
     const filterValidFields = (body) => {
         const forbiddenPrefixes = ['current_', 'unit_', 'estrategia_', 'resultado_', 'eje_'];
         const forbiddenSuffixes = ['_name', '_code', '_unidad'];
-        
+
         return Object.keys(body).filter(key => {
             // ALWAYS allow relational IDs
             if (key.endsWith('_id')) return true;
@@ -267,7 +240,7 @@ const registerCrud = (resource, tableName) => {
         try {
             const oldRecord = await pool.query(`SELECT * FROM ${tableName} WHERE id = $1`, [id]);
             if (oldRecord.rows.length === 0) return res.status(404).json({ error: 'Not found' });
-            
+
             if (tableName === 'tareas' && (req.body.fecha_inicio || req.body.fecha_fin)) {
                 const fInicio = req.body.fecha_inicio !== undefined ? req.body.fecha_inicio : oldRecord.rows[0].fecha_inicio;
                 const fFin = req.body.fecha_fin !== undefined ? req.body.fecha_fin : oldRecord.rows[0].fecha_fin;
@@ -368,7 +341,7 @@ const updateProgressChain = async (tareaId) => {
                 WHERE tarea_id = $1 AND estado = 'Aprobado'
             ) 
             WHERE id = $1`, [tareaId]);
-        
+
         // 2. Identify parents
         const tareaInfo = await pool.query(`
             SELECT a.producto_id, prod.mega_id 
@@ -376,10 +349,10 @@ const updateProgressChain = async (tareaId) => {
             JOIN actividades a ON t.actividad_id = a.id 
             JOIN productos_intermedios prod ON a.producto_id = prod.id 
             WHERE t.id = $1`, [tareaId]);
-            
+
         if (tareaInfo.rows.length > 0) {
             const { producto_id, mega_id } = tareaInfo.rows[0];
-            
+
             // 3. Update Producto Intermedio (SUM of its Tasks)
             await pool.query(`
                 UPDATE productos_intermedios SET avance_fisico = (
@@ -388,7 +361,7 @@ const updateProgressChain = async (tareaId) => {
                     JOIN actividades a ON t.actividad_id = a.id 
                     WHERE a.producto_id = $1
                 ) WHERE id = $1`, [producto_id]);
-                
+
             // 4. Update MeGA (SUM of weighted Products)
             await pool.query(`
                 UPDATE megas SET avance_fisico = (
@@ -451,41 +424,41 @@ app.post('/api/avances-semanales', async (req, res) => {
             ON CONFLICT (tarea_id, semana) DO UPDATE SET avance_real = $3, observacion = $4, evidencia_url = $5, estado = 'Reportado'
             RETURNING *
         `, [tarea_id, semana, avance_real, observacion, evidencia_url]);
-        
+
         // Recalculate chain: will only sum approved ones, so this won't change current progres until approved
         await updateProgressChain(tarea_id);
-        
+
         res.json({ success: true, record: result.rows[0] });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.post('/api/avances-semanales/validar', async (req, res) => {
-    const { id, estado } = req.body; 
+    const { id, estado } = req.body;
     try {
         // Update weekly info and state
         const result = await pool.query('UPDATE avances_semanales SET estado = $1 WHERE id = $2 RETURNING *', [estado, id]);
-        
+
         if (result.rows.length > 0) {
             // Trigger progress chain recalculation since state has changed to 'Aprobado' or something else
             await updateProgressChain(result.rows[0].tarea_id);
         }
-        
+
         res.json(result.rows[0]);
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.post('/api/tareas', async (req, res) => {
-    const { 
-        actividad_id, name, ponderacion_producto, responsable_nombre, responsable_cargo, 
-        medio_verificacion, fecha_inicio, fecha_fin, user_id, director_id, code, 
-        tipo_avance, planograma, indicador, resultado_esperado, vinculada_poa 
+    const {
+        actividad_id, name, ponderacion_producto, responsable_nombre, responsable_cargo,
+        medio_verificacion, fecha_inicio, fecha_fin, user_id, director_id, code,
+        tipo_avance, planograma, indicador, resultado_esperado, vinculada_poa
     } = req.body;
     try {
         await validateFechasTarea(actividad_id, fecha_inicio, fecha_fin);
 
         const actInfo = await pool.query('SELECT producto_id FROM actividades WHERE id = $1', [actividad_id]);
         if (actInfo.rows.length === 0) return res.status(400).json({ error: 'Actividad no encontrada' });
-        
+
         const prodId = actInfo.rows[0].producto_id;
         const currentSumRes = await pool.query(`
             SELECT SUM(t.ponderacion_producto) as total 
@@ -503,18 +476,18 @@ app.post('/api/tareas', async (req, res) => {
                 tipo_avance, planograma, indicador, resultado_esperado, vinculada_poa
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING *`,
             [
-                actividad_id, name, ponderacion_producto, responsable_nombre, responsable_cargo, 
-                medio_verificacion, fecha_inicio, fecha_fin, user_id, director_id, code, 
+                actividad_id, name, ponderacion_producto, responsable_nombre, responsable_cargo,
+                medio_verificacion, fecha_inicio, fecha_fin, user_id, director_id, code,
                 tipo_avance || 'Semanal', planograma ? JSON.stringify(planograma) : null,
                 indicador, resultado_esperado, vinculada_poa || 'NO'
             ]
         );
         res.status(201).json(result.rows[0]);
-    } catch (err) { 
+    } catch (err) {
         if (err.message.includes('No se encontró') || err.message.includes('fecha') || err.message.includes('ponderación')) {
             res.status(400).json({ error: err.message });
         } else {
-            res.status(500).json({ error: err.message }); 
+            res.status(500).json({ error: err.message });
         }
     }
 });
@@ -540,18 +513,20 @@ app.get('/api/dashboard-stats', async (req, res) => {
     try {
         let megaFilter = '';
         let taskFilter = '';
-        
+
+        const safeUserId = parseInt(userId || 0);
+
         if (role === 'Tecnico') {
-            taskFilter = `WHERE user_id = ${parseInt(userId)}`;
-            megaFilter = `WHERE unit_id IN (SELECT unit_id FROM usuarios WHERE id = ${parseInt(userId)})`;
+            taskFilter = `WHERE user_id = ${safeUserId}`;
+            megaFilter = `WHERE unit_id IN (SELECT unit_id FROM usuarios WHERE id = ${safeUserId})`;
         } else if (role === 'Director') {
-            taskFilter = `WHERE director_id = ${parseInt(userId)}`;
-            megaFilter = `WHERE unit_id IN (SELECT unit_id FROM usuarios WHERE id = ${parseInt(userId)})`;
+            taskFilter = `WHERE director_id = ${safeUserId}`;
+            megaFilter = `WHERE unit_id IN (SELECT unit_id FROM usuarios WHERE id = ${safeUserId})`;
         }
 
         const megasProgress = await pool.query(`SELECT code, name, avance_fisico as progress FROM megas ${megaFilter} ORDER BY avance_fisico DESC LIMIT 8`);
         const globalProgress = await pool.query(`SELECT COALESCE(AVG(avance_fisico), 0) as global FROM megas ${megaFilter}`);
-        
+
         const semaphores = await pool.query(`
             SELECT 
                 COUNT(*) FILTER (WHERE estado_calculado = 'Terminado') as green,
@@ -574,7 +549,7 @@ app.get('/api/dashboard-stats', async (req, res) => {
                 ${taskFilter}
             ) t
         `);
-        
+
         const unitsProgress = await pool.query(`
             SELECT u.name, COALESCE(AVG(m.avance_fisico), 0) as progress
             FROM unidades_organizacionales u
@@ -676,7 +651,7 @@ app.get('/api/dashboard-stats', async (req, res) => {
                 en_proceso: parseInt(a.en_proceso),
                 pendientes: parseInt(a.pendientes),
                 estado: parseInt(a.retrasadas) > 0 ? 'Retrasado' :
-                        parseInt(a.terminadas) === parseInt(a.total_tareas) ? 'Terminado' :
+                    parseInt(a.terminadas) === parseInt(a.total_tareas) ? 'Terminado' :
                         parseInt(a.en_proceso) > 0 ? 'En Proceso' : 'Pendiente'
             }))
         });
@@ -764,7 +739,7 @@ app.post('/api/login', async (req, res) => {
             LEFT JOIN unidades_organizacionales un ON u.unit_id = un.id 
             WHERE u.username = $1 AND u.password = $2
         `, [username, password]);
-        
+
         if (result.rows.length > 0) {
             const user = result.rows[0];
             delete user.password;
@@ -786,16 +761,16 @@ app.post('/api/usuarios/:id/reset-password', async (req, res) => {
         if (oldUser.rows.length === 0) return res.status(404).json({ error: 'Usuario no encontrado' });
 
         await pool.query('UPDATE usuarios SET password = $1 WHERE id = $2', [newPassword, id]);
-        
+
         await logAudit(
-            req.headers['x-user-id'] || null, 
-            'RESET_PASSWORD', 
-            'usuarios', 
-            id, 
-            { user: oldUser.rows[0].username }, 
+            req.headers['x-user-id'] || null,
+            'RESET_PASSWORD',
+            'usuarios',
+            id,
+            { user: oldUser.rows[0].username },
             { action: 'Password updated' }
         );
-        
+
         res.json({ message: 'Contraseña actualizada correctamente' });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -935,7 +910,7 @@ module.exports.pool = pool;
 const seedUnidades = async () => {
     try {
         console.log('Running Single-Query Mass Organigram Seed (52 nodes)...');
-        
+
         // Use a single transaction/block for performance and atomicity
         await pool.query(`
             DO $$ 
