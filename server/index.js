@@ -19,191 +19,41 @@ const pool = new Pool({
 // Initialize MeGAs DB Tables
 const initDb = async () => {
     try {
-        await pool.query(`
-            -- Hierarchy Tables
-            CREATE TABLE IF NOT EXISTS unidades_organizacionales (
-                id SERIAL PRIMARY KEY,
-                name TEXT NOT NULL,
-                type TEXT NOT NULL, -- Ministro, Viceministerio, Direccion, Unidad, Jefatura
-                parent_id INTEGER REFERENCES unidades_organizacionales(id) ON DELETE CASCADE
-            );
+        // 1. Create Core Tables one by one for reliability
+        await pool.query('CREATE TABLE IF NOT EXISTS unidades_organizacionales (id SERIAL PRIMARY KEY, name TEXT NOT NULL, type TEXT NOT NULL, parent_id INTEGER REFERENCES unidades_organizacionales(id) ON DELETE CASCADE)');
+        await pool.query('CREATE TABLE IF NOT EXISTS usuarios (id SERIAL PRIMARY KEY, username TEXT UNIQUE NOT NULL, password TEXT NOT NULL, role TEXT NOT NULL, fullname TEXT, unit_id INTEGER REFERENCES unidades_organizacionales(id) ON DELETE SET NULL)');
+        await pool.query('CREATE TABLE IF NOT EXISTS ejes (id SERIAL PRIMARY KEY, code TEXT NOT NULL UNIQUE, description TEXT NOT NULL)');
+        await pool.query('CREATE TABLE IF NOT EXISTS resultados (id SERIAL PRIMARY KEY, code TEXT NOT NULL UNIQUE, description TEXT NOT NULL, eje_id INTEGER REFERENCES ejes(id) ON DELETE CASCADE)');
+        await pool.query('CREATE TABLE IF NOT EXISTS estrategias (id SERIAL PRIMARY KEY, code TEXT NOT NULL UNIQUE, description TEXT NOT NULL, resultado_id INTEGER REFERENCES resultados(id) ON DELETE CASCADE)');
+        await pool.query('CREATE TABLE IF NOT EXISTS megas (id SERIAL PRIMARY KEY, code TEXT NOT NULL UNIQUE, name TEXT NOT NULL, estrategia_id INTEGER REFERENCES estrategias(id) ON DELETE CASCADE, unit_id INTEGER REFERENCES unidades_organizacionales(id) ON DELETE SET NULL, period TEXT DEFAULT \'2026-2030\', avance_fisico DECIMAL(5,2) DEFAULT 0.00)');
+        await pool.query('CREATE TABLE IF NOT EXISTS productos_intermedios (id SERIAL PRIMARY KEY, code TEXT UNIQUE, name TEXT NOT NULL, mega_id INTEGER REFERENCES megas(id) ON DELETE CASCADE, ponderacion_total DECIMAL(5,2) DEFAULT 100.00, avance_fisico DECIMAL(5,2) DEFAULT 0.00, UNIQUE(name, mega_id))');
+        await pool.query('CREATE TABLE IF NOT EXISTS actividades (id SERIAL PRIMARY KEY, code TEXT UNIQUE, name TEXT NOT NULL, producto_id INTEGER REFERENCES productos_intermedios(id) ON DELETE CASCADE)');
+        await pool.query(`CREATE TABLE IF NOT EXISTS tareas (
+            id SERIAL PRIMARY KEY, 
+            code TEXT UNIQUE, 
+            actividad_id INTEGER REFERENCES actividades(id) ON DELETE CASCADE, 
+            name TEXT NOT NULL, 
+            description TEXT, 
+            ponderacion_producto DECIMAL(5,2) NOT NULL DEFAULT 0.00, 
+            fecha_inicio DATE, 
+            fecha_fin DATE, 
+            user_assigned_id INTEGER REFERENCES usuarios(id) ON DELETE SET NULL, 
+            user_id INTEGER REFERENCES usuarios(id) ON DELETE SET NULL,
+            director_id INTEGER REFERENCES usuarios(id) ON DELETE SET NULL, 
+            responsable_nombre TEXT, 
+            responsable_cargo TEXT, 
+            medio_verificacion TEXT,
+            avance_fisico DECIMAL(5,2) DEFAULT 0.00,
+            tipo_avance VARCHAR(20) DEFAULT 'Semanal',
+            planograma JSONB,
+            indicador TEXT,
+            resultado_esperado TEXT,
+            vinculada_poa VARCHAR(10) DEFAULT 'NO'
+        )`);
+        await pool.query('CREATE TABLE IF NOT EXISTS avances_semanales (id SERIAL PRIMARY KEY, tarea_id INTEGER REFERENCES tareas(id) ON DELETE CASCADE, semana INTEGER NOT NULL, avance_real DECIMAL(5,2) DEFAULT 0.00, observacion TEXT, evidencia_url TEXT, estado VARCHAR(20) DEFAULT \'Reportado\', UNIQUE(tarea_id, semana))');
+        await pool.query('CREATE TABLE IF NOT EXISTS auditoria (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES usuarios(id) ON DELETE SET NULL, action TEXT NOT NULL, table_name TEXT NOT NULL, record_id INTEGER, old_data JSONB, new_data JSONB, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)');
 
-            CREATE TABLE IF NOT EXISTS usuarios (
-                id SERIAL PRIMARY KEY,
-                username TEXT UNIQUE NOT NULL,
-                password TEXT NOT NULL,
-                role TEXT NOT NULL, 
-                fullname TEXT,
-                unit_id INTEGER REFERENCES unidades_organizacionales(id) ON DELETE SET NULL
-            );
-
-            CREATE TABLE IF NOT EXISTS ejes (
-                id SERIAL PRIMARY KEY,
-                code TEXT NOT NULL UNIQUE,
-                description TEXT NOT NULL
-            );
-
-            CREATE TABLE IF NOT EXISTS resultados (
-                id SERIAL PRIMARY KEY,
-                code TEXT NOT NULL UNIQUE,
-                description TEXT NOT NULL,
-                eje_id INTEGER REFERENCES ejes(id) ON DELETE CASCADE
-            );
-
-            CREATE TABLE IF NOT EXISTS estrategias (
-                id SERIAL PRIMARY KEY,
-                code TEXT NOT NULL UNIQUE,
-                description TEXT NOT NULL,
-                resultado_id INTEGER REFERENCES resultados(id) ON DELETE CASCADE
-            );
-
-            CREATE TABLE IF NOT EXISTS megas (
-                id SERIAL PRIMARY KEY,
-                code TEXT NOT NULL UNIQUE,
-                name TEXT NOT NULL,
-                estrategia_id INTEGER REFERENCES estrategias(id) ON DELETE CASCADE,
-                unit_id INTEGER REFERENCES unidades_organizacionales(id) ON DELETE SET NULL,
-                period TEXT DEFAULT '2026-2030',
-                avance_fisico DECIMAL(5,2) DEFAULT 0.00
-            );
-
-            CREATE TABLE IF NOT EXISTS productos_intermedios (
-                id SERIAL PRIMARY KEY,
-                code TEXT UNIQUE,
-                name TEXT NOT NULL,
-                mega_id INTEGER REFERENCES megas(id) ON DELETE CASCADE,
-                ponderacion_total DECIMAL(5,2) DEFAULT 100.00,
-                avance_fisico DECIMAL(5,2) DEFAULT 0.00,
-                UNIQUE(name, mega_id)
-            );
-
-            CREATE TABLE IF NOT EXISTS actividades (
-                id SERIAL PRIMARY KEY,
-                code TEXT UNIQUE,
-                name TEXT NOT NULL,
-                producto_id INTEGER REFERENCES productos_intermedios(id) ON DELETE CASCADE
-            );
-
-            CREATE TABLE IF NOT EXISTS tareas (
-                id SERIAL PRIMARY KEY,
-                code TEXT UNIQUE,
-                actividad_id INTEGER REFERENCES actividades(id) ON DELETE CASCADE,
-                name TEXT NOT NULL,
-                description TEXT,
-                ponderacion_producto DECIMAL(5,2) NOT NULL DEFAULT 0.00, -- Peso respecto al Producto (Formulario 1)
-                fecha_inicio DATE,
-                fecha_fin DATE,
-                user_assigned_id INTEGER REFERENCES usuarios(id) ON DELETE SET NULL,
-                director_id INTEGER REFERENCES usuarios(id) ON DELETE SET NULL,
-                responsable_nombre TEXT,
-                responsable_cargo TEXT,
-                medio_verificacion TEXT,
-                avance_fisico DECIMAL(5,2) DEFAULT 0.00, -- Progreso calculado (SUM de avances_semanales / Num semanas o similar)
-                estado TEXT DEFAULT 'Pendiente'
-            );
-
-            CREATE TABLE IF NOT EXISTS avances_semanales (
-                id SERIAL PRIMARY KEY,
-                tarea_id INTEGER REFERENCES tareas(id) ON DELETE CASCADE,
-                semana INTEGER NOT NULL,
-                avance_real DECIMAL(5,2) DEFAULT 0.00,
-                observacion TEXT,
-                evidencia_url TEXT,
-                estado VARCHAR(20) DEFAULT 'Reportado', -- Reportado, Aprobado, Rechazado
-                UNIQUE(tarea_id, semana)
-            );
-
-            CREATE TABLE IF NOT EXISTS auditoria (
-                id SERIAL PRIMARY KEY,
-                user_id INTEGER REFERENCES usuarios(id) ON DELETE SET NULL,
-                action TEXT NOT NULL,
-                table_name TEXT NOT NULL,
-                record_id INTEGER,
-                old_data JSONB,
-                new_data JSONB,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-
-            -- Fix existing tables to ensure all columns exist (since CREATE TABLE IF NOT EXISTS doesn't update schema)
-            DO $$ BEGIN
-                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'megas' AND column_name = 'avance_fisico') THEN
-                    ALTER TABLE megas ADD COLUMN avance_fisico DECIMAL(5,2) DEFAULT 0.00;
-                END IF;
-                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'megas' AND column_name = 'fecha_inicio') THEN
-                    ALTER TABLE megas ADD COLUMN fecha_inicio DATE;
-                END IF;
-                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'megas' AND column_name = 'fecha_fin') THEN
-                    ALTER TABLE megas ADD COLUMN fecha_fin DATE;
-                END IF;
-                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'productos_intermedios' AND column_name = 'avance_fisico') THEN
-                    ALTER TABLE productos_intermedios ADD COLUMN avance_fisico DECIMAL(5,2) DEFAULT 0.00;
-                END IF;
-                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tareas' AND column_name = 'ponderacion_producto') THEN
-                    ALTER TABLE tareas ADD COLUMN ponderacion_producto DECIMAL(5,2) NOT NULL DEFAULT 0.00;
-                END IF;
-                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tareas' AND column_name = 'avance_fisico') THEN
-                    ALTER TABLE tareas ADD COLUMN avance_fisico DECIMAL(5,2) DEFAULT 0.00;
-                END IF;
-                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tareas' AND column_name = 'responsable_nombre') THEN
-                    ALTER TABLE tareas ADD COLUMN responsable_nombre TEXT;
-                END IF;
-                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tareas' AND column_name = 'responsable_cargo') THEN
-                    ALTER TABLE tareas ADD COLUMN responsable_cargo TEXT;
-                END IF;
-                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tareas' AND column_name = 'medio_verificacion') THEN
-                    ALTER TABLE tareas ADD COLUMN medio_verificacion TEXT;
-                END IF;
-                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'productos_intermedios' AND column_name = 'code') THEN
-                    ALTER TABLE productos_intermedios ADD COLUMN code TEXT UNIQUE;
-                END IF;
-                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'actividades' AND column_name = 'code') THEN
-                    ALTER TABLE actividades ADD COLUMN code TEXT UNIQUE;
-                END IF;
-                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tareas' AND column_name = 'code') THEN
-                    ALTER TABLE tareas ADD COLUMN code TEXT UNIQUE;
-                END IF;
-                IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tareas' AND column_name = 'ponderacion') THEN
-                    ALTER TABLE tareas ALTER COLUMN ponderacion DROP NOT NULL;
-                END IF;
-                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'usuarios' AND column_name = 'fullname') THEN
-                    ALTER TABLE usuarios ADD COLUMN fullname TEXT;
-                END IF;
-                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tareas' AND column_name = 'user_id') THEN
-                    ALTER TABLE tareas ADD COLUMN user_id INTEGER REFERENCES usuarios(id) ON DELETE SET NULL;
-                END IF;
-                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tareas' AND column_name = 'director_id') THEN
-                    ALTER TABLE tareas ADD COLUMN director_id INTEGER REFERENCES usuarios(id) ON DELETE SET NULL;
-                END IF;
-                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tareas' AND column_name = 'tipo_avance') THEN
-                    ALTER TABLE tareas ADD COLUMN tipo_avance VARCHAR(20) DEFAULT 'Semanal';
-                END IF;
-                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tareas' AND column_name = 'planograma') THEN
-                    ALTER TABLE tareas ADD COLUMN planograma JSONB;
-                END IF;
-                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'usuarios' AND column_name = 'unit_id') THEN
-                    ALTER TABLE usuarios ADD COLUMN unit_id INTEGER REFERENCES unidades_organizacionales(id);
-                END IF;
-                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tareas' AND column_name = 'indicador') THEN
-                    ALTER TABLE tareas ADD COLUMN indicador TEXT;
-                END IF;
-                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tareas' AND column_name = 'resultado_esperado') THEN
-                    ALTER TABLE tareas ADD COLUMN resultado_esperado TEXT;
-                END IF;
-                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tareas' AND column_name = 'vinculada_poa') THEN
-                    ALTER TABLE tareas ADD COLUMN vinculada_poa VARCHAR(10) DEFAULT 'NO';
-                END IF;
-            END $$;
-        `);
-        
-        // Cleanup duplicates before applying unique constraints
-        await pool.query(`
-            DELETE FROM tareas t1 USING tareas t2 WHERE t1.id > t2.id AND t1.name = t2.name AND t1.actividad_id = t2.actividad_id;
-            DELETE FROM actividades a1 USING actividades a2 WHERE a1.id > a2.id AND a1.name = a2.name AND a1.producto_id = a2.producto_id;
-            UPDATE tareas SET avance_fisico = 0 WHERE avance_fisico IS NULL;
-            UPDATE tareas SET ponderacion_producto = 0 WHERE ponderacion_producto IS NULL;
-        `);
-
-        // Apply unique constraints for idempotency
+        // 2. Apply unique constraints
         await pool.query(`
             DO $$ BEGIN
                 IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'act_name_prod_uq') THEN
@@ -215,9 +65,9 @@ const initDb = async () => {
             END $$;
         `);
 
+        // 3. Seed Basic Data
         await seedUnidades();
-
-        // Seed basic tactical data
+        
         await pool.query(`
             INSERT INTO ejes (code, description) VALUES 
             ('Eje 1', 'Bolivia, economia para la gente'),
@@ -234,27 +84,14 @@ const initDb = async () => {
             ('E98', 'Promoción de la minería responsable', (SELECT id FROM resultados WHERE code = 'R10'))
             ON CONFLICT (code) DO NOTHING;
 
-            INSERT INTO usuarios (username, password, role, fullname, unit_id) 
-            VALUES 
-            ('admin', 'admin123', 'Admin', 'Administrador Sistema', 1),
-            ('tecnico_afcoop', 'pass123', 'Tecnico', 'Tecnico AFCOOP', 31),
-            ('director_dgpps', 'pass123', 'Director', 'Director DGPPS', 17)
+            INSERT INTO usuarios (username, password, role, fullname) 
+            VALUES ('admin', 'admin123', 'Admin', 'Administrador Sistema')
             ON CONFLICT (username) DO NOTHING;
-
-            -- Seed initial MeGAs
-            INSERT INTO megas (code, name, estrategia_id, unit_id) VALUES 
-            ('M1_AFC', 'Formalización de 500 cooperativas a nivel nacional', (SELECT id FROM estrategias WHERE code = 'E46'), 31),
-            ('M2_DGPPS', 'Implementar 3 nuevas políticas de empleo', (SELECT id FROM estrategias WHERE code = 'E46'), 17)
-            ON CONFLICT (code) DO NOTHING;
         `);
 
-        console.log('MeGAs Database Initialized and Seeded (Base Structure)');
-        // Auto-seed of examples disabled to prevent resurrection of deleted data on reboots:
-        // await seedFormulario1();
-        // await seedAfcoopData();
-        // await seedMoreExamples();
+        console.log('Database Initialized and Seeded Successfully');
     } catch (err) {
-        console.error('Error initializing MeGAs DB:', err);
+        console.error('Error in initDb:', err);
     }
 };
 

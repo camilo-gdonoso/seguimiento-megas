@@ -19,7 +19,7 @@ const Layout = ({ children, user, onLogout }) => {
     if (user?.id) {
        const fetchNotifs = async () => {
          try {
-           const res = await axios.get(`http://localhost:3000/api/notificaciones/${user.id}`);
+           const res = await axios.get(`/api/notificaciones/${user.id}`);
            setNotifs(res.data);
          } catch (e) { console.error(e); }
        };
