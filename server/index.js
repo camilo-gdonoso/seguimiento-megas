@@ -1119,10 +1119,31 @@ let isDbInitialized = false;
 app.use(async (req, res, next) => {
     if (process.env.VERCEL && !isDbInitialized) {
         try {
-            await initDb();
+            // First ensure essential tables exist
+            await pool.query(`
+                CREATE TABLE IF NOT EXISTS unidades_organizacionales (id SERIAL PRIMARY KEY, name TEXT NOT NULL, type TEXT NOT NULL, parent_id INTEGER);
+                CREATE TABLE IF NOT EXISTS usuarios (
+                    id SERIAL PRIMARY KEY, 
+                    username TEXT UNIQUE NOT NULL, 
+                    password TEXT NOT NULL, 
+                    role TEXT NOT NULL, 
+                    fullname TEXT, 
+                    unit_id INTEGER
+                );
+            `);
+            
+            // Seed Admin if not exists
+            await pool.query(`
+                INSERT INTO usuarios (username, password, role, fullname) 
+                VALUES ('admin', 'admin123', 'Admin', 'Administrador MeGAs')
+                ON CONFLICT (username) DO NOTHING;
+            `);
+
+            // Then run full initialization in background
+            initDb().catch(err => console.error('Full init error:', err));
             isDbInitialized = true;
         } catch (err) {
-            console.error('Error initializing DB on Vercel:', err);
+            console.error('Critical initialization error:', err);
         }
     }
     next();
