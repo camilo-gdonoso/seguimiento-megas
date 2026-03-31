@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronRight, ChevronDown, Building, Users, MapPin, Briefcase } from 'lucide-react';
+import { ORGANIGRAM } from '../constants/organigram.js';
 
-const UnitNode = ({ node, units, level = 0 }) => {
+const UnitNode = ({ node, level = 0 }) => {
   const [isOpen, setIsOpen] = useState(level < 2);
-  const children = units.filter(u => u.parent_id === node.id);
+  const children = ORGANIGRAM.filter(u => u.parent_id === node.id);
   const hasChildren = children.length > 0;
 
   const getTypeIcon = (type) => {
@@ -62,7 +63,7 @@ const UnitNode = ({ node, units, level = 0 }) => {
             style={{ overflow: 'hidden' }}
           >
             {children.map(child => (
-              <UnitNode key={child.id} node={child} units={units} level={level + 1} />
+              <UnitNode key={child.id} node={child} level={level + 1} />
             ))}
           </motion.div>
         )}
@@ -71,15 +72,13 @@ const UnitNode = ({ node, units, level = 0 }) => {
   );
 };
 
-const HierarchyTree = ({ units }) => {
-  const rootUnits = units.filter(u => u.parent_id === null);
+const HierarchyTree = () => {
+  const rootUnits = ORGANIGRAM.filter(u => u.parent_id === null || u.parent_id === undefined);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-      {rootUnits.length === 0 ? (
-        <p style={{ textAlign: 'center', color: '#64748b', padding: '2rem' }}>Cargando estructura...</p>
-      ) : rootUnits.map(root => (
-        <UnitNode key={root.id} node={root} units={units} />
+      {rootUnits.map(root => (
+        <UnitNode key={root.id} node={root} />
       ))}
     </div>
   );
