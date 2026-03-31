@@ -1,86 +1,34 @@
-# Sistema de Seguimiento Estratégico MeGAs (MTEPS/AFCOOP)
+# Sistema Web de Seguimiento de Resultados Estratégicos (MeGAs) - MTEPS / AFCOOP
 
-Este repositorio contiene la plataforma integral para el seguimiento de metas estratégicas (MeGAs) del Ministerio de Trabajo, Empleo y Previsión Social (MTEPS) y la Autoridad de Fiscalización y Control de Cooperativas (AFCOOP).
+Este sistema ha sido diseñado para la gestión y seguimiento de resultados institucionales. Para garantizar la integridad del organigrama ministerial, se ha implementado un esquema de **"Estructura Blindada"**.
 
-## 🚀 Despliegue en Producción (Vercel + NeonDB)
+## 🛠️ Guía de Despliegue para el Equipo Técnico
 
-El sistema está optimizado para ejecutarse en entornos serverless.
+### 1. Requisitos Previos
+*   Node.js v18+
+*   PostgreSQL
+*   Variables de entorno: `DATABASE_URL` vinculada a la instancia de Postgres.
 
-### Requisitos Previos
-1. Una cuenta en [Vercel](https://vercel.com).
-2. Una base de datos PostgreSQL en [Neon.tech](https://neon.tech).
+### 2. Inicialización de la Base de Datos
+El sistema cuenta con un motor de inicialización automática de tablas en el primer arranque. Sin embargo, para que las uniones relacionales funcionen con el organigrama estático, se debe ejecutar la **Semilla de la Estructura** una sola vez.
 
-### Variables de Entorno (Vercel)
-Configura las siguientes variables en tu proyecto de Vercel:
-- `DATABASE_URL`: La URL de conexión de Neon (debe incluir `sslmode=require`).
-
----
-
-## 🛠️ Inicialización de Base de Datos (SQL Manual)
-
-Si necesitas recrear la estructura o notas errores de "relation does not exist", ejecuta este script en el **SQL Editor** de tu consola de Neon:
-
-```sql
--- 1. ESTRUCTURA DE JERARQUÍA Y USUARIOS
-CREATE TABLE IF NOT EXISTS unidades_organizacionales (id SERIAL PRIMARY KEY, name TEXT NOT NULL, type TEXT NOT NULL, parent_id INTEGER REFERENCES unidades_organizacionales(id) ON DELETE CASCADE);
-CREATE TABLE IF NOT EXISTS usuarios (id SERIAL PRIMARY KEY, username TEXT UNIQUE NOT NULL, password TEXT NOT NULL, role TEXT NOT NULL, fullname TEXT, unit_id INTEGER REFERENCES unidades_organizacionales(id) ON DELETE SET NULL);
-
--- 2. ORGANIGRAMA OFICIAL MTEPS (Carga Maestro)
-TRUNCATE TABLE unidades_organizacionales RESTART IDENTITY CASCADE;
-INSERT INTO unidades_organizacionales (id, name, type) VALUES (1, 'Despacho del Ministro (a)', 'Ministro');
-INSERT INTO unidades_organizacionales (id, name, type, parent_id) VALUES 
-(2, 'Viceministerio de Trabajo y Previsión Social', 'Viceministerio', 1),
-(3, 'Viceministerio de Empleo, Servicio Civil y Cooperativas', 'Viceministerio', 1);
-INSERT INTO unidades_organizacionales (name, type, parent_id) VALUES 
-('Dir. Gral. de Planificación', 'Direccion', 1), ('Dir. Gral. Administrativa', 'Direccion', 1),
-('Dir. Gral. Jurídica', 'Direccion', 1), ('Dir. Gral. de Trabajo', 'Direccion', 2),
-('Dir. Gral. Previsión Social', 'Direccion', 2), ('Dir. Gral. Sindicales', 'Direccion', 2),
-('Dir. Gral. Empleo', 'Direccion', 3), ('Dir. Gral. Cooperativas', 'Direccion', 3),
-('Dir. Gral. Servicio Civil', 'Direccion', 3), ('AFCOOP', 'Direccion', 3);
--- Jefaturas y Unidades adicionales según diagrama oficial...
--- (Consultar script completo en server/index.js)
-
--- 2. ESTRUCTURA DE SEGUIMIENTO (MeGAs)
-CREATE TABLE IF NOT EXISTS megas (id SERIAL PRIMARY KEY, code TEXT NOT NULL UNIQUE, name TEXT NOT NULL, estrategia_id INTEGER REFERENCES estrategias(id) ON DELETE CASCADE, unit_id INTEGER REFERENCES unidades_organizacionales(id) ON DELETE SET NULL, period TEXT DEFAULT '2026-2030', avance_fisico DECIMAL(5,2) DEFAULT 0.00);
-CREATE TABLE IF NOT EXISTS productos_intermedios (id SERIAL PRIMARY KEY, code TEXT UNIQUE, name TEXT NOT NULL, mega_id INTEGER REFERENCES megas(id) ON DELETE CASCADE, ponderacion_total DECIMAL(5,2) DEFAULT 100.00, avance_fisico DECIMAL(5,2) DEFAULT 0.00, UNIQUE(name, mega_id));
-CREATE TABLE IF NOT EXISTS actividades (id SERIAL PRIMARY KEY, code TEXT UNIQUE, name TEXT NOT NULL, producto_id INTEGER REFERENCES productos_intermedios(id) ON DELETE CASCADE);
-CREATE TABLE IF NOT EXISTS tareas (id SERIAL PRIMARY KEY, code TEXT UNIQUE, actividad_id INTEGER REFERENCES actividades(id) ON DELETE CASCADE, name TEXT NOT NULL, description TEXT, ponderacion_producto DECIMAL(5,2) NOT NULL DEFAULT 0.00, fecha_inicio DATE, fecha_fin DATE, user_id INTEGER REFERENCES usuarios(id) ON DELETE SET NULL, director_id INTEGER REFERENCES usuarios(id) ON DELETE SET NULL, avance_fisico DECIMAL(5,2) DEFAULT 0.00, responsable_nombre TEXT, responsable_cargo TEXT, medio_verificacion TEXT);
-
--- 3. SEMANAS Y AUDITORÍA
-CREATE TABLE IF NOT EXISTS avances_semanales (id SERIAL PRIMARY KEY, tarea_id INTEGER REFERENCES tareas(id) ON DELETE CASCADE, semana INTEGER NOT NULL, avance_real DECIMAL(5,2) DEFAULT 0.00, observacion TEXT, evidencia_url TEXT, estado VARCHAR(20) DEFAULT 'Reportado', UNIQUE(tarea_id, semana));
-CREATE TABLE IF NOT EXISTS auditoria (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES usuarios(id) ON DELETE SET NULL, action TEXT NOT NULL, table_name TEXT NOT NULL, record_id INTEGER, old_data JSONB, new_data JSONB, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
-
--- 4. USUARIO ADMINISTRADOR INICIAL
-INSERT INTO usuarios (username, password, role, fullname) VALUES ('admin', 'admin123', 'Admin', 'Administrador Sistema') ON CONFLICT (username) DO NOTHING;
+#### Paso A: Cargar el Organigrama Ministerial (52 Nodos)
+Ejecutar una petición `POST` al siguiente endpoint (puede hacerse vía Postman o cURL):
+```bash
+POST /api/admin/seed-organigram
 ```
+Este comando insertará los 52 nodos oficiales con sus IDs exactos para coincidir con la lógica del frontend. 
+
+### 3. Carga de Catálogo (Ejes, Resultados, Estrategias)
+Por diseño, el sistema **no carga datos de ejemplo automáticamente** (como Ejes o Resultados) para respetar los borrados definitivos realizados por el usuario.
+*   El equipo de planificación debe cargar estos datos **manualmente** a través del módulo de **Catálogo** en la plataforma.
+
+### 4. Estructura Blindada (Frontend)
+El organigrama es **estático** en el código por seguridad institucional. Si se requiere modificar un nombre o añadir una oficina de forma permanente, se debe editar el archivo:
+`src/constants/organigram.js`
+
+### 5. Auditoría
+Todas las acciones de creación, edición y borrado se registran automáticamente en la tabla `auditoria` de la base de datos, incluyendo el usuario y el timestamp.
 
 ---
-
-## 🏗️ Carga de Datos de Ejemplo (Opcional)
-
-Puedes usar este SQL para cargar algunos MeGAs y ver el Dashboard en acción:
-
-```sql
--- Cargar un Eje y Estrategia
-INSERT INTO ejes (code, description) VALUES ('Eje 1', 'Bolivia, economía para la gente') ON CONFLICT (code) DO NOTHING;
-INSERT INTO resultados (code, description, eje_id) VALUES ('R6', 'Institucionalidad fortalecida', (SELECT id FROM ejes LIMIT 1)) ON CONFLICT (code) DO NOTHING;
-INSERT INTO estrategias (code, description, resultado_id) VALUES ('E46', 'Modernización normativa', (SELECT id FROM resultados LIMIT 1)) ON CONFLICT (code) DO NOTHING;
-
--- Cargar un MeGA bajo el Despacho del Ministro (Unidad ID 1)
-INSERT INTO megas (code, name, estrategia_id, unit_id) 
-VALUES ('M1_DEMO', 'Fortalecimiento de la Digitalización Laboral', (SELECT id FROM estrategias LIMIT 1), 1)
-ON CONFLICT (code) DO NOTHING;
-```
-
----
-
-## 📈 Funcionalidades Clave
-1. **Generación de Formulario A Trimestral:** Exportable a Excel desde el módulo de Dashboard.
-2. **Formulario 1 (Semanal):** Seguimiento detallado por responsable con evidencia digital.
-3. **Semáforo de Cumplimiento:** Colores Rojo/Amarillo/Verde basados en fechas límite y avance real.
-4. **Registro de Auditoría:** Control de todas las modificaciones realizadas por cada usuario.
-
----
-
-## 🛡️ Seguridad
-El sistema utiliza el header `x-user-id` para identificar al autor en los registros de auditoría. Para producción a escala, se recomienda implementar una capa de JWT (JSON Web Tokens).
+© 2026 Kallpatech - Soluciones digitales para la gestión pública.

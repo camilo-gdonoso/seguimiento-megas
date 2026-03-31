@@ -983,11 +983,12 @@ app.get('/api/formulario-a-trimestral', async (req, res) => {
                     )
                 ), 0) AS q1,
 
-// Manual Seed Endpoint (Admin only or Secret)
+// Manual Seed Endpoint (Admin only)
 app.post('/api/admin/seed-organigram', async (req, res) => {
     try {
+        console.log('User manually requested Organigram Seed (52 nodes)');
         await seedUnidades();
-        res.json({ message: 'Organigram seeded successfully (52 nodes)' });
+        res.json({ message: 'Estructura Institucional (52 nodos) cargada correctamente en la Base de Datos.' });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
