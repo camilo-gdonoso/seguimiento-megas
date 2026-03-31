@@ -119,8 +119,14 @@ const initDb = async () => {
             END $$;
         `);
 
-        // 3. Seed Basic Data
-        await seedUnidades();
+        // 3. Seed Basic Data (Only if empty)
+        const unitsCheck = await pool.query('SELECT COUNT(*) FROM unidades_organizacionales');
+        if (parseInt(unitsCheck.rows[0].count) === 0) {
+            console.log('Seeding initial organigram...');
+            await seedUnidades();
+        } else {
+            console.log(`Skipping organigram seed, already has ${unitsCheck.rows[0].count} units.`);
+        }
         
         await pool.query(`
             INSERT INTO ejes (code, description) VALUES 
