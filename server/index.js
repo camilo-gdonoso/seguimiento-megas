@@ -123,30 +123,16 @@ const initDb = async () => {
         // Auto-seed removed to respect manual deletions from the platform.
         
         await pool.query(`
-            INSERT INTO ejes (code, description) VALUES 
-            ('Eje 1', 'Bolivia, economia para la gente'),
-            ('Eje 6', 'Mercado laboral formal y dinamico con empleo estable')
-            ON CONFLICT (code) DO NOTHING;
-
-            INSERT INTO resultados (code, description, eje_id) VALUES 
-            ('R6', 'Institucionalidad del mercado laboral fortalecida', (SELECT id FROM ejes WHERE code = 'Eje 1')),
-            ('R10', 'Sistemas de previsión social universales', (SELECT id FROM ejes WHERE code = 'Eje 1'))
-            ON CONFLICT (code) DO NOTHING;
-
-            INSERT INTO estrategias (code, description, resultado_id) VALUES 
-            ('E46', 'Modernización de la normativa jurídica laboral', (SELECT id FROM resultados WHERE code = 'R6')),
-            ('E98', 'Promoción de la minería responsable', (SELECT id FROM resultados WHERE code = 'R10'))
-            ON CONFLICT (code) DO NOTHING;
-
+            -- Keep only the core Admin user
             INSERT INTO usuarios (username, password, role, fullname, unit_id) 
             VALUES ('admin', 'admin123', 'Admin', 'Administrador Sistema', 1)
             ON CONFLICT (username) DO NOTHING;
         `);
 
-        // 4. Seed Samples and reset sequences
-        await seedMoreExamples();
-        await seedAfcoopData();
-        await seedFormulario1();
+        // 4. Seeding Samples REMOVED from startup to respect manual deletions.
+        // await seedMoreExamples();
+        // await seedAfcoopData();
+        // await seedFormulario1();
 
         // 5. Reset all ID sequences to avoid 'Duplicate Key' errors during manual entry
         await pool.query(`
