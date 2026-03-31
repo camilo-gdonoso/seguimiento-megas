@@ -9,6 +9,49 @@ const port = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 
+// Middleware for Vercel initialization - MUST BE AT THE TOP
+let isDbInitialized = false;
+app.use(async (req, res, next) => {
+    if (process.env.VERCEL && !isDbInitialized) {
+        try {
+            // First ensure essential tables exist (Blocking)
+            await pool.query(`
+                CREATE TABLE IF NOT EXISTS unidades_organizacionales (id SERIAL PRIMARY KEY, name TEXT NOT NULL, type TEXT NOT NULL, parent_id INTEGER);
+                CREATE TABLE IF NOT EXISTS usuarios (
+                    id SERIAL PRIMARY KEY, 
+                    username TEXT UNIQUE NOT NULL, 
+                    password TEXT NOT NULL, 
+                    role TEXT NOT NULL, 
+                    fullname TEXT, 
+                    unit_id INTEGER
+                );
+            `);
+            
+            // Seed Admin if not exists
+            await pool.query(`
+                INSERT INTO usuarios (username, password, role, fullname, unit_id) 
+                VALUES ('admin', 'admin123', 'Admin', 'Administrador MeGAs', 1)
+                ON CONFLICT (username) DO NOTHING;
+            `);
+
+            // Check if full organigram exists, if not, wait for full init
+            const count = await pool.query('SELECT COUNT(*) FROM unidades_organizacionales');
+            if (parseInt(count.rows[0].count) < 10) {
+                console.log('Triggering Full Database Init...');
+                await initDb();
+            } else {
+                // background check for small updates
+                initDb().catch(err => console.error('Background init error:', err));
+            }
+            
+            isDbInitialized = true;
+        } catch (err) {
+            console.error('Critical initialization error:', err);
+        }
+    }
+    next();
+});
+
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: process.env.DATABASE_URL?.includes('neon.tech') ? { rejectUnauthorized: false } : false
@@ -970,49 +1013,6 @@ app.get('/api/formulario-a-trimestral', async (req, res) => {
     }
 });
 
-// Middleware for Vercel initialization
-let isDbInitialized = false;
-app.use(async (req, res, next) => {
-    if (process.env.VERCEL && !isDbInitialized) {
-        try {
-            // First ensure essential tables exist (Blocking)
-            await pool.query(`
-                CREATE TABLE IF NOT EXISTS unidades_organizacionales (id SERIAL PRIMARY KEY, name TEXT NOT NULL, type TEXT NOT NULL, parent_id INTEGER);
-                CREATE TABLE IF NOT EXISTS usuarios (
-                    id SERIAL PRIMARY KEY, 
-                    username TEXT UNIQUE NOT NULL, 
-                    password TEXT NOT NULL, 
-                    role TEXT NOT NULL, 
-                    fullname TEXT, 
-                    unit_id INTEGER
-                );
-            `);
-            
-            // Seed Admin if not exists
-            await pool.query(`
-                INSERT INTO usuarios (username, password, role, fullname) 
-                VALUES ('admin', 'admin123', 'Admin', 'Administrador MeGAs')
-                ON CONFLICT (username) DO NOTHING;
-            `);
-
-            // Check if full organigram exists, if not, wait for full init
-            const count = await pool.query('SELECT COUNT(*) FROM unidades_organizacionales');
-            if (parseInt(count.rows[0].count) < 10) {
-                console.log('Triggering Full Database Init...');
-                await initDb();
-            } else {
-                // background check for small updates
-                initDb().catch(err => console.error('Background init error:', err));
-            }
-            
-            isDbInitialized = true;
-        } catch (err) {
-            console.error('Critical initialization error:', err);
-            // Don't set isDbInitialized to true so it retries next request
-        }
-    }
-    next();
-});
 
 if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL) {
     initDb().then(() => {
