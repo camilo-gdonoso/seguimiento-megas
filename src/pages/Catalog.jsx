@@ -319,6 +319,7 @@ const Catalog = ({ user }) => {
       }
       setIsModalOpen(false);
       fetchData();
+      fetchSupportData();
       setAlertDialog({ isOpen: true, title: 'Éxito', message: 'Registro guardado correctamente.', type: 'success' });
     } catch (err) {
       setError(err.response?.data?.error || 'Error al guardar el registro');
@@ -522,14 +523,14 @@ const Catalog = ({ user }) => {
                   {activeTab === 'resultados' && (
                     <td style={{ padding: '1.25rem', fontSize: '0.85rem', color: '#64748b' }}>
                       <span style={{ background: '#fef3c7', padding: '0.2rem 0.6rem', borderRadius: '4px', fontWeight: 700, color: '#92400e' }}>
-                        {ejes.find(e => e.id === item.eje_id)?.code || '---'}
+                        {ejes.find(e => Number(e.id) === Number(item.eje_id))?.code || '---'}
                       </span>
                     </td>
                   )}
-                  {activeTab === 'estrategias' && (
+                   {activeTab === 'estrategias' && (
                     <td style={{ padding: '1.25rem', fontSize: '0.85rem', color: '#64748b' }}>
                       <span style={{ background: '#e0f2fe', padding: '0.2rem 0.6rem', borderRadius: '4px', fontWeight: 700, color: '#0369a1' }}>
-                        {resultados.find(r => r.id === item.resultado_id)?.code || '---'}
+                        {resultados.find(r => Number(r.id) === Number(item.resultado_id))?.code || '---'}
                       </span>
                     </td>
                   )}
