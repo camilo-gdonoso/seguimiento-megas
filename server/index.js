@@ -1113,7 +1113,7 @@ app.get('/api/formulario-a-trimestral', async (req, res) => {
     }
 });
 
-if (process.env.NODE_ENV !== 'test') {
+if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL) {
     initDb().then(() => {
         app.listen(port, () => {
             console.log(`MeGAs Backend running on port ${port}`);
@@ -1121,7 +1121,14 @@ if (process.env.NODE_ENV !== 'test') {
     });
 }
 
-module.exports = { app, pool };
+// In serverless environments (Vercel), ensure DB is initialized before first request
+if (process.env.VERCEL) {
+    initDb();
+}
+
+module.exports = app;
+module.exports.app = app;
+module.exports.pool = pool;
 // Seed MTEPS Organigram
 // Seed MTEPS Organigram
 const seedUnidades = async () => {

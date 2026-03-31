@@ -1,16 +1,34 @@
-# React + Vite
+# Sistema Web de Seguimiento de Resultados Estratégicos (MeGAs)
+### Ministerio de Trabajo, Empleo y Previsión Social (MTEPS) / AFCOOP
+#### Agenda Patriótica 50/50 - SPIE - MeGAs 2026/2030
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+---
 
-Currently, two official plugins are available:
+## 📌 Descripción del Proyecto
+El **Sistema MeGAs** es una plataforma centralizada diseñada para el monitoreo y seguimiento en tiempo real de los avances estratégicos institucionales del MTEPS y AFCOOP. El sistema permite articular la planificación operativa (POA) con los resultados macro de la **Agenda Patriótica 50/50**, garantizando la transparencia y la trazabilidad en el cumplimiento de metas físicas.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+---
 
-## React Compiler
+## 🚀 Funcionalidades Clave
+1.  **Gestión Jerárquica:** Articulación completa desde Ejes Estratégicos hasta Tareas Individuales.
+2.  **Reportabilidad Técnica (Módulo 2):** Generación automática de **Formulario A Trimestral** (Q1-Q4) y **Formulario 1 (Semanal)** exportables a Excel.
+3.  **Dashboard de Control (Nivel N3):** Panel ejecutivo con semaforización por Actividad, Unidad, Dirección General y Funcionario.
+4.  **Flujo de Aprobación (Módulo 3):** Los directores revisan y aprueban avances, con recálculo automático del cumplimiento físico global.
+5.  **Auditoría Integral (Módulo 5):** Cada cambio en el sistema es registrado para auditorías de control interno.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the ESLint configuration
+## 🛠️ Stack Tecnológico
+*   **Frontend:** React (Vite) + Lucide Icons + Framer Motion.
+*   **Backend:** Node.js + Express.js.
+*   **Base de Datos:** PostgreSQL 15.
+*   **Infraestructura:** Despliegue profesional mediante **Docker Compose** y Nginx.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+---
+
+## 📁 Documentación de Entrega
+*   [Guía de Despliegue con Docker](FINAL_DEPLOYMENT.md)
+*   [Referencia Técnica de API](API_DOCUMENTATION.md)
+
+---
+**Kallpatech Solutions** | Sucre, Bolivia - 2026
