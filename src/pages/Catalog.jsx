@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Database, ChevronRight, Edit2, Trash2, Layers, Building, Search, ClipboardCheck, Shield, LayoutGrid } from 'lucide-react';
+import { Plus, Database, ChevronRight, Edit2, Trash2, Layers, Building, Search, ClipboardCheck, Shield, LayoutGrid, FileText } from 'lucide-react';
 import axios from 'axios';
 import HierarchyTree from '../components/HierarchyTree';
 
