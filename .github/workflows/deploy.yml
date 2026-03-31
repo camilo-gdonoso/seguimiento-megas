@@ -1,0 +1,35 @@
+name: MueblesERP CI/CD
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-and-verify:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Use Node.js 20
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+        cache: 'npm'
+
+    - name: Install Frontend Dependencies
+      run: npm install
+
+    - name: Build Frontend
+      run: npm run build
+
+    - name: Verify Backend
+      run: |
+        cd server
+        npm install
+        # Add lint or tests here if available
+
+    - name: Deploy Announcement
+      run: echo "Code is verified and ready for deployment to Production!"

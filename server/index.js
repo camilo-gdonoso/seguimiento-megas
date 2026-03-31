@@ -1,0 +1,1202 @@
+const express = require('express');
+const { Pool } = require('pg');
+const cors = require('cors');
+require('dotenv').config();
+
+const app = express();
+const port = process.env.PORT || 3000;
+
+app.use(cors());
+app.use(express.json({ limit: '50mb' }));
+
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+});
+
+
+
+// Initialize MeGAs DB Tables
+const initDb = async () => {
+    try {
+        await pool.query(`
+            -- Hierarchy Tables
+            CREATE TABLE IF NOT EXISTS unidades_organizacionales (
+                id SERIAL PRIMARY KEY,
+                name TEXT NOT NULL,
+                type TEXT NOT NULL, -- Ministro, Viceministerio, Direccion, Unidad, Jefatura
+                parent_id INTEGER REFERENCES unidades_organizacionales(id) ON DELETE CASCADE
+            );
+
+            CREATE TABLE IF NOT EXISTS usuarios (
+                id SERIAL PRIMARY KEY,
+                username TEXT UNIQUE NOT NULL,
+                password TEXT NOT NULL,
+                role TEXT NOT NULL, 
+                fullname TEXT,
+                unit_id INTEGER REFERENCES unidades_organizacionales(id) ON DELETE SET NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS ejes (
+                id SERIAL PRIMARY KEY,
+                code TEXT NOT NULL UNIQUE,
+                description TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS resultados (
+                id SERIAL PRIMARY KEY,
+                code TEXT NOT NULL UNIQUE,
+                description TEXT NOT NULL,
+                eje_id INTEGER REFERENCES ejes(id) ON DELETE CASCADE
+            );
+
+            CREATE TABLE IF NOT EXISTS estrategias (
+                id SERIAL PRIMARY KEY,
+                code TEXT NOT NULL UNIQUE,
+                description TEXT NOT NULL,
+                resultado_id INTEGER REFERENCES resultados(id) ON DELETE CASCADE
+            );
+
+            CREATE TABLE IF NOT EXISTS megas (
+                id SERIAL PRIMARY KEY,
+                code TEXT NOT NULL UNIQUE,
+                name TEXT NOT NULL,
+                estrategia_id INTEGER REFERENCES estrategias(id) ON DELETE CASCADE,
+                unit_id INTEGER REFERENCES unidades_organizacionales(id) ON DELETE SET NULL,
+                period TEXT DEFAULT '2026-2030',
+                avance_fisico DECIMAL(5,2) DEFAULT 0.00
+            );
+
+            CREATE TABLE IF NOT EXISTS productos_intermedios (
+                id SERIAL PRIMARY KEY,
+                code TEXT UNIQUE,
+                name TEXT NOT NULL,
+                mega_id INTEGER REFERENCES megas(id) ON DELETE CASCADE,
+                ponderacion_total DECIMAL(5,2) DEFAULT 100.00,
+                avance_fisico DECIMAL(5,2) DEFAULT 0.00,
+                UNIQUE(name, mega_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS actividades (
+                id SERIAL PRIMARY KEY,
+                code TEXT UNIQUE,
+                name TEXT NOT NULL,
+                producto_id INTEGER REFERENCES productos_intermedios(id) ON DELETE CASCADE
+            );
+
+            CREATE TABLE IF NOT EXISTS tareas (
+                id SERIAL PRIMARY KEY,
+                code TEXT UNIQUE,
+                actividad_id INTEGER REFERENCES actividades(id) ON DELETE CASCADE,
+                name TEXT NOT NULL,
+                description TEXT,
+                ponderacion_producto DECIMAL(5,2) NOT NULL DEFAULT 0.00, -- Peso respecto al Producto (Formulario 1)
+                fecha_inicio DATE,
+                fecha_fin DATE,
+                user_assigned_id INTEGER REFERENCES usuarios(id) ON DELETE SET NULL,
+                director_id INTEGER REFERENCES usuarios(id) ON DELETE SET NULL,
+                responsable_nombre TEXT,
+                responsable_cargo TEXT,
+                medio_verificacion TEXT,
+                avance_fisico DECIMAL(5,2) DEFAULT 0.00, -- Progreso calculado (SUM de avances_semanales / Num semanas o similar)
+                estado TEXT DEFAULT 'Pendiente'
+            );
+
+            CREATE TABLE IF NOT EXISTS avances_semanales (
+                id SERIAL PRIMARY KEY,
+                tarea_id INTEGER REFERENCES tareas(id) ON DELETE CASCADE,
+                semana INTEGER NOT NULL,
+                avance_real DECIMAL(5,2) DEFAULT 0.00,
+                observacion TEXT,
+                evidencia_url TEXT,
+                estado VARCHAR(20) DEFAULT 'Reportado', -- Reportado, Aprobado, Rechazado
+                UNIQUE(tarea_id, semana)
+            );
+
+            CREATE TABLE IF NOT EXISTS auditoria (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER REFERENCES usuarios(id) ON DELETE SET NULL,
+                action TEXT NOT NULL,
+                table_name TEXT NOT NULL,
+                record_id INTEGER,
+                old_data JSONB,
+                new_data JSONB,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+
+            -- Fix existing tables to ensure all columns exist (since CREATE TABLE IF NOT EXISTS doesn't update schema)
+            DO $$ BEGIN
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'megas' AND column_name = 'avance_fisico') THEN
+                    ALTER TABLE megas ADD COLUMN avance_fisico DECIMAL(5,2) DEFAULT 0.00;
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'megas' AND column_name = 'fecha_inicio') THEN
+                    ALTER TABLE megas ADD COLUMN fecha_inicio DATE;
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'megas' AND column_name = 'fecha_fin') THEN
+                    ALTER TABLE megas ADD COLUMN fecha_fin DATE;
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'productos_intermedios' AND column_name = 'avance_fisico') THEN
+                    ALTER TABLE productos_intermedios ADD COLUMN avance_fisico DECIMAL(5,2) DEFAULT 0.00;
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tareas' AND column_name = 'ponderacion_producto') THEN
+                    ALTER TABLE tareas ADD COLUMN ponderacion_producto DECIMAL(5,2) NOT NULL DEFAULT 0.00;
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tareas' AND column_name = 'avance_fisico') THEN
+                    ALTER TABLE tareas ADD COLUMN avance_fisico DECIMAL(5,2) DEFAULT 0.00;
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tareas' AND column_name = 'responsable_nombre') THEN
+                    ALTER TABLE tareas ADD COLUMN responsable_nombre TEXT;
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tareas' AND column_name = 'responsable_cargo') THEN
+                    ALTER TABLE tareas ADD COLUMN responsable_cargo TEXT;
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tareas' AND column_name = 'medio_verificacion') THEN
+                    ALTER TABLE tareas ADD COLUMN medio_verificacion TEXT;
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'productos_intermedios' AND column_name = 'code') THEN
+                    ALTER TABLE productos_intermedios ADD COLUMN code TEXT UNIQUE;
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'actividades' AND column_name = 'code') THEN
+                    ALTER TABLE actividades ADD COLUMN code TEXT UNIQUE;
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tareas' AND column_name = 'code') THEN
+                    ALTER TABLE tareas ADD COLUMN code TEXT UNIQUE;
+                END IF;
+                IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tareas' AND column_name = 'ponderacion') THEN
+                    ALTER TABLE tareas ALTER COLUMN ponderacion DROP NOT NULL;
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'usuarios' AND column_name = 'fullname') THEN
+                    ALTER TABLE usuarios ADD COLUMN fullname TEXT;
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tareas' AND column_name = 'user_id') THEN
+                    ALTER TABLE tareas ADD COLUMN user_id INTEGER REFERENCES usuarios(id) ON DELETE SET NULL;
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tareas' AND column_name = 'director_id') THEN
+                    ALTER TABLE tareas ADD COLUMN director_id INTEGER REFERENCES usuarios(id) ON DELETE SET NULL;
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tareas' AND column_name = 'tipo_avance') THEN
+                    ALTER TABLE tareas ADD COLUMN tipo_avance VARCHAR(20) DEFAULT 'Semanal';
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tareas' AND column_name = 'planograma') THEN
+                    ALTER TABLE tareas ADD COLUMN planograma JSONB;
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'usuarios' AND column_name = 'unit_id') THEN
+                    ALTER TABLE usuarios ADD COLUMN unit_id INTEGER REFERENCES unidades_organizacionales(id);
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tareas' AND column_name = 'indicador') THEN
+                    ALTER TABLE tareas ADD COLUMN indicador TEXT;
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tareas' AND column_name = 'resultado_esperado') THEN
+                    ALTER TABLE tareas ADD COLUMN resultado_esperado TEXT;
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tareas' AND column_name = 'vinculada_poa') THEN
+                    ALTER TABLE tareas ADD COLUMN vinculada_poa VARCHAR(10) DEFAULT 'NO';
+                END IF;
+            END $$;
+        `);
+        
+        // Cleanup duplicates before applying unique constraints
+        await pool.query(`
+            DELETE FROM tareas t1 USING tareas t2 WHERE t1.id > t2.id AND t1.name = t2.name AND t1.actividad_id = t2.actividad_id;
+            DELETE FROM actividades a1 USING actividades a2 WHERE a1.id > a2.id AND a1.name = a2.name AND a1.producto_id = a2.producto_id;
+            UPDATE tareas SET avance_fisico = 0 WHERE avance_fisico IS NULL;
+            UPDATE tareas SET ponderacion_producto = 0 WHERE ponderacion_producto IS NULL;
+        `);
+
+        // Apply unique constraints for idempotency
+        await pool.query(`
+            DO $$ BEGIN
+                IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'act_name_prod_uq') THEN
+                    ALTER TABLE actividades ADD CONSTRAINT act_name_prod_uq UNIQUE (name, producto_id);
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'tarea_name_act_uq') THEN
+                    ALTER TABLE tareas ADD CONSTRAINT tarea_name_act_uq UNIQUE (name, actividad_id);
+                END IF;
+            END $$;
+        `);
+
+        await seedUnidades();
+
+        // Seed basic tactical data
+        await pool.query(`
+            INSERT INTO ejes (code, description) VALUES 
+            ('Eje 1', 'Bolivia, economia para la gente'),
+            ('Eje 6', 'Mercado laboral formal y dinamico con empleo estable')
+            ON CONFLICT (code) DO NOTHING;
+
+            INSERT INTO resultados (code, description, eje_id) VALUES 
+            ('R6', 'Institucionalidad del mercado laboral fortalecida', (SELECT id FROM ejes WHERE code = 'Eje 1')),
+            ('R10', 'Sistemas de previsión social universales', (SELECT id FROM ejes WHERE code = 'Eje 1'))
+            ON CONFLICT (code) DO NOTHING;
+
+            INSERT INTO estrategias (code, description, resultado_id) VALUES 
+            ('E46', 'Modernización de la normativa jurídica laboral', (SELECT id FROM resultados WHERE code = 'R6')),
+            ('E98', 'Promoción de la minería responsable', (SELECT id FROM resultados WHERE code = 'R10'))
+            ON CONFLICT (code) DO NOTHING;
+
+            INSERT INTO usuarios (username, password, role, fullname, unit_id) 
+            VALUES 
+            ('admin', 'admin123', 'Admin', 'Administrador Sistema', 1),
+            ('tecnico_afcoop', 'pass123', 'Tecnico', 'Tecnico AFCOOP', 31),
+            ('director_dgpps', 'pass123', 'Director', 'Director DGPPS', 17)
+            ON CONFLICT (username) DO NOTHING;
+
+            -- Seed initial MeGAs
+            INSERT INTO megas (code, name, estrategia_id, unit_id) VALUES 
+            ('M1_AFC', 'Formalización de 500 cooperativas a nivel nacional', (SELECT id FROM estrategias WHERE code = 'E46'), 31),
+            ('M2_DGPPS', 'Implementar 3 nuevas políticas de empleo', (SELECT id FROM estrategias WHERE code = 'E46'), 17)
+            ON CONFLICT (code) DO NOTHING;
+        `);
+
+        console.log('MeGAs Database Initialized and Seeded (Base Structure)');
+        // Auto-seed of examples disabled to prevent resurrection of deleted data on reboots:
+        // await seedFormulario1();
+        // await seedAfcoopData();
+        // await seedMoreExamples();
+    } catch (err) {
+        console.error('Error initializing MeGAs DB:', err);
+    }
+};
+
+const seedMoreExamples = async () => {
+    try {
+        const estRes = await pool.query("SELECT id FROM estrategias LIMIT 1");
+        const estId = estRes.rows[0].id;
+        const vmtpsId = 15; // Viceministerio de Trabajo y Previsión Social
+
+        // --- MeGA: Digitalización Jefaturas ---
+        const megaDigit = await pool.query(`
+            INSERT INTO megas (code, name, estrategia_id, unit_id) 
+            VALUES ('M_DIGIT_JEF', 'Se han digitalizado todos los trámites a cargo de las Jefaturas Departamentales y Regionales', $1, $2)
+            ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name RETURNING id`, [estId, vmtpsId]);
+        const mIdDigit = megaDigit.rows[0].id;
+
+        const p1 = (await pool.query("INSERT INTO productos_intermedios (name, mega_id, ponderacion_total) VALUES ('1. Manual de Procesos y Procedimientos actualizado.', $1, 25.00) ON CONFLICT (name, mega_id) DO UPDATE SET ponderacion_total = EXCLUDED.ponderacion_total RETURNING id", [mIdDigit])).rows[0].id;
+        const p2 = (await pool.query("INSERT INTO productos_intermedios (name, mega_id, ponderacion_total) VALUES ('2. reuniones técnicas para el desarrollo del sistema de digitalización.', $1, 25.00) ON CONFLICT (name, mega_id) DO UPDATE SET ponderacion_total = EXCLUDED.ponderacion_total RETURNING id", [mIdDigit])).rows[0].id;
+        const p3 = (await pool.query("INSERT INTO productos_intermedios (name, mega_id, ponderacion_total) VALUES ('3. Sistema Único de Trámites Laborales.', $1, 50.00) ON CONFLICT (name, mega_id) DO UPDATE SET ponderacion_total = EXCLUDED.ponderacion_total RETURNING id", [mIdDigit])).rows[0].id;
+
+        // Tarea para P1
+        const a1 = (await pool.query("INSERT INTO actividades (name, producto_id) VALUES ('Elaboración de los flujogramas preliminares', $1) ON CONFLICT (name, producto_id) DO UPDATE SET name = EXCLUDED.name RETURNING id", [p1])).rows[0].id;
+        await pool.query("INSERT INTO tareas (actividad_id, name, ponderacion_producto, fecha_inicio, fecha_fin, medio_verificacion, responsable_nombre) VALUES ($1, 'Elaboración del documento final del Manual', 100.0, '2026-03-02', '2026-03-13', 'Informe Técnico', 'Micaela Lola Cespedes Cadena') ON CONFLICT (name, actividad_id) DO NOTHING", [a1]);
+
+        // --- MeGA: Plataforma Virtual Trámites ---
+        const megaPlat = await pool.query(`
+            INSERT INTO megas (code, name, estrategia_id, unit_id) 
+            VALUES ('M_PLAT_VIRT', 'Se ha implementado una Plataforma Integral Virtual de Trámites y Servicios laborales moderna y funcional.', $1, $2)
+            ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name RETURNING id`, [estId, vmtpsId]);
+        const mIdPlat = megaPlat.rows[0].id;
+
+        const pPlat = (await pool.query("INSERT INTO productos_intermedios (name, mega_id, ponderacion_total) VALUES ('1. Cronograma de trabajo concertado con la Dirección de Planificación y UTIC', $1, 100.00) ON CONFLICT (name, mega_id) DO UPDATE SET ponderacion_total = EXCLUDED.ponderacion_total RETURNING id", [mIdPlat])).rows[0].id;
+        
+        const actPlat = (await pool.query("INSERT INTO actividades (name, producto_id) VALUES ('Análisis y desarrollo normativo de la plataforma', $1) ON CONFLICT (name, producto_id) DO UPDATE SET name = EXCLUDED.name RETURNING id", [pPlat])).rows[0].id;
+        await pool.query("INSERT INTO tareas (actividad_id, name, ponderacion_producto, fecha_inicio, fecha_fin, medio_verificacion, responsable_nombre, responsable_cargo) VALUES ($1, 'Elaboración del proyecto de normativa para su implementación', 100.0, '2026-07-01', '2026-09-30', 'Informe Técnico', 'DGTHSO / Personal Técnico', 'UTIC') ON CONFLICT (name, actividad_id) DO NOTHING", [actPlat]);
+
+        // --- MeGA: Nuevo Código de Seguridad Social ---
+        const dgppsId = 2; // Dirección General de Políticas de Previsión Social
+        const megaSegSoc = await pool.query(`
+            INSERT INTO megas (code, name, estrategia_id, unit_id) 
+            VALUES ('M_SEG_SOC', 'Se cuenta con un Anteproyectos de Ley del Nuevo Código de Seguridad Social y Ley de Código Único de Usuario', $1, $2)
+            ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name RETURNING id`, [estId, dgppsId]);
+        const mIdSegSoc = megaSegSoc.rows[0].id;
+
+        const p1Soc = (await pool.query("INSERT INTO productos_intermedios (name, mega_id, ponderacion_total) VALUES ('1. Mesas de Trabajo Técnico con todas las entidades relacionadas a la Seguridad Social', $1, 50.00) ON CONFLICT (name, mega_id) DO UPDATE SET ponderacion_total = EXCLUDED.ponderacion_total RETURNING id", [mIdSegSoc])).rows[0].id;
+        const p2Soc = (await pool.query("INSERT INTO productos_intermedios (name, mega_id, ponderacion_total) VALUES ('2. Planificación de un Diagnóstico de la Seguridad Social en Bolivia', $1, 50.00) ON CONFLICT (name, mega_id) DO UPDATE SET ponderacion_total = EXCLUDED.ponderacion_total RETURNING id", [mIdSegSoc])).rows[0].id;
+
+        // Actividades y Tareas para P1
+        const act1 = (await pool.query("INSERT INTO actividades (name, producto_id) VALUES ('Reuniones de socialización para la proyección de un nuevo Código', $1) ON CONFLICT (name, producto_id) DO UPDATE SET name = EXCLUDED.name RETURNING id", [p1Soc])).rows[0].id;
+        await pool.query("INSERT INTO tareas (actividad_id, name, ponderacion_producto, fecha_inicio, fecha_fin, medio_verificacion, responsable_nombre, responsable_cargo) VALUES ($1, 'Solicitar a las entidades la remisión de propuestas normativas', 20.0, '2026-01-29', '2026-03-29', 'Actas de Reuniones', 'Patricia Lopez', 'Profesional de Políticas de Previsión Social') ON CONFLICT (name, actividad_id) DO NOTHING", [act1]);
+        
+        const act2 = (await pool.query("INSERT INTO actividades (name, producto_id) VALUES ('Sistematización de propuestas presentadas', $1) ON CONFLICT (name, producto_id) DO UPDATE SET name = EXCLUDED.name RETURNING id", [p1Soc])).rows[0].id;
+        await pool.query("INSERT INTO tareas (actividad_id, name, ponderacion_producto, fecha_inicio, fecha_fin, medio_verificacion, responsable_nombre, responsable_cargo) VALUES ($1, 'Proyección borrador Anteproyecto Código Seguridad Social', 40.0, '2026-04-01', '2026-07-15', 'Informe Técnico', 'Patricia Lopez', 'Profesional de Políticas de Previsión Social') ON CONFLICT (name, actividad_id) DO NOTHING", [act2]);
+        
+        const act3 = (await pool.query("INSERT INTO actividades (name, producto_id) VALUES ('Consolidación de propuestas técnicas interinstitucionales', $1) ON CONFLICT (name, producto_id) DO UPDATE SET name = EXCLUDED.name RETURNING id", [p1Soc])).rows[0].id;
+        await pool.query("INSERT INTO tareas (actividad_id, name, ponderacion_producto, fecha_inicio, fecha_fin, medio_verificacion, responsable_nombre, responsable_cargo) VALUES ($1, 'Presentación oficial del proyecto normativo', 40.0, '2027-07-16', '2027-11-25', 'Informe Técnico', 'Patricia Lopez', 'Profesional de Políticas de Previsión Social') ON CONFLICT (name, actividad_id) DO NOTHING", [act3]);
+
+        console.log('Additional Examples Seeded Successfully');
+    } catch (err) {
+        console.error('Seeding more examples error:', err);
+    }
+}
+
+const seedAfcoopData = async () => {
+    try {
+        const afcoopUnit = await pool.query("SELECT id FROM unidades_organizacionales WHERE name LIKE '%AFCOOP%' LIMIT 1");
+        const afcoopId = afcoopUnit.rows.length > 0 ? afcoopUnit.rows[0].id : 31;
+        const estRes = await pool.query("SELECT id FROM estrategias WHERE code = 'E46' LIMIT 1");
+        const estId = estRes.rows.length > 0 ? estRes.rows[0].id : 1;
+
+        // --- MeGA 1: Formación Cooperativa ---
+        const mega1 = await pool.query(`
+            INSERT INTO megas (code, name, estrategia_id, unit_id) 
+            VALUES ('M_FORM_AFC', 'Se ha Fortalecido al Movimiento Cooperativo impulsando procesos de Formación altamente calificados.', $1, $2)
+            ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name RETURNING id`, [estId, afcoopId]);
+        const m1 = mega1.rows[0].id;
+
+        const p1 = await pool.query(`
+            INSERT INTO productos_intermedios (name, mega_id, ponderacion_total) 
+            VALUES ('1. Programa de Formación Cooperativa en distintas temáticas implementado', $1, 100.00)
+            ON CONFLICT (name, mega_id) DO UPDATE SET ponderacion_total = EXCLUDED.ponderacion_total RETURNING id`, [m1]);
+        const m1p1 = p1.rows[0].id;
+
+        const a1_1 = await pool.query("INSERT INTO actividades (name, producto_id) VALUES ('Presentación del Programa de Formación', $1) ON CONFLICT (name, producto_id) DO UPDATE SET name = EXCLUDED.name RETURNING id", [m1p1]);
+        const a1_2 = await pool.query("INSERT INTO actividades (name, producto_id) VALUES ('Talleres de formación y capacitación en el Movimiento', $1) ON CONFLICT (name, producto_id) DO UPDATE SET name = EXCLUDED.name RETURNING id", [m1p1]);
+        const a1_3 = await pool.query("INSERT INTO actividades (name, producto_id) VALUES ('Creación del Centro de Investigación Cooperativa', $1) ON CONFLICT (name, producto_id) DO UPDATE SET name = EXCLUDED.name RETURNING id", [m1p1]);
+
+        await pool.query("INSERT INTO tareas (actividad_id, name, ponderacion_producto, fecha_inicio, fecha_fin, medio_verificacion, responsable_nombre) VALUES ($1, 'Preparación del Plan incluyendo cronograma y contenidos', 10.0, '2026-01-15', '2026-02-27', 'Programa aprobado', 'AFCOOP') ON CONFLICT (name, actividad_id) DO NOTHING", [a1_1.rows[0].id]);
+        await pool.query("INSERT INTO tareas (actividad_id, name, ponderacion_producto, fecha_inicio, fecha_fin, medio_verificacion, responsable_nombre) VALUES ($1, 'Iniciar la implementación con pruebas piloto en distintos sectores', 20.0, '2026-03-01', '2026-12-31', 'Actas de talleres', 'AFCOOP') ON CONFLICT (name, actividad_id) DO NOTHING", [a1_2.rows[0].id]);
+        await pool.query("INSERT INTO tareas (actividad_id, name, ponderacion_producto, fecha_inicio, fecha_fin, medio_verificacion, responsable_nombre) VALUES ($1, 'Iniciar la implementación masiva en distintos sectores del país', 25.0, '2027-01-15', '2030-12-31', 'Actas de talleres', 'AFCOOP') ON CONFLICT (name, actividad_id) DO NOTHING", [a1_2.rows[0].id]);
+        await pool.query("INSERT INTO tareas (actividad_id, name, ponderacion_producto, fecha_inicio, fecha_fin, medio_verificacion, responsable_nombre) VALUES ($1, 'Involucrar a la cooperación internacional en la Creación del Centro', 45.0, '2028-01-15', '2028-12-31', 'Convenios de cooperación', 'AFCOOP') ON CONFLICT (name, actividad_id) DO NOTHING", [a1_3.rows[0].id]);
+
+        // --- MeGA 2: Transformación Digital ---
+        const mega2 = await pool.query(`
+            INSERT INTO megas (code, name, estrategia_id, unit_id) 
+            VALUES ('M_DIGIT_AFC', 'Se ha logrado la Transformación Digital y Desburocratización de todos los tramites cooperativos.', $1, $2)
+            ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name RETURNING id`, [estId, afcoopId]);
+        const m2 = mega2.rows[0].id;
+
+        const m2p1 = (await pool.query("INSERT INTO productos_intermedios (name, mega_id, ponderacion_total) VALUES ('1. Sistema Integrado de Trámites Cooperativos (SITCOOP) implementado.', $1, 40.00) ON CONFLICT (name, mega_id) DO UPDATE SET ponderacion_total = EXCLUDED.ponderacion_total RETURNING id", [m2])).rows[0].id;
+        const m2p2 = (await pool.query("INSERT INTO productos_intermedios (name, mega_id, ponderacion_total) VALUES ('2. Convenios de Interoperabilidad del REC con entidades estatales.', $1, 30.00) ON CONFLICT (name, mega_id) DO UPDATE SET ponderacion_total = EXCLUDED.ponderacion_total RETURNING id", [m2])).rows[0].id;
+        const m2p3 = (await pool.query("INSERT INTO productos_intermedios (name, mega_id, ponderacion_total) VALUES ('3. Sistema Integrado de Control, Supervisión y Fiscalización.', $1, 30.00) ON CONFLICT (name, mega_id) DO UPDATE SET ponderacion_total = EXCLUDED.ponderacion_total RETURNING id", [m2])).rows[0].id;
+
+        // Tareas SITCOOP
+        const a2_1 = (await pool.query("INSERT INTO actividades (name, producto_id) VALUES ('Implementación SITCOOP por Fases', $1) ON CONFLICT (name, producto_id) DO UPDATE SET name = EXCLUDED.name RETURNING id", [m2p1])).rows[0].id;
+        await pool.query("INSERT INTO tareas (actividad_id, name, ponderacion_producto, fecha_inicio, fecha_fin, medio_verificacion, responsable_nombre) VALUES ($1, 'Publicar Resolución Administrativa SITCOOP Fase 2', 35.0, '2026-03-02', '2026-04-15', 'Resolución de aprobación', 'AFCOOP') ON CONFLICT (name, actividad_id) DO NOTHING", [a2_1]);
+        await pool.query("INSERT INTO tareas (actividad_id, name, ponderacion_producto, fecha_inicio, fecha_fin, medio_verificacion, responsable_nombre) VALUES ($1, 'Optimización de 7 módulos para la Fase 3 del SITCOOP', 35.0, '2026-03-02', '2026-08-31', 'Resolución de aprobación', 'AFCOOP') ON CONFLICT (name, actividad_id) DO NOTHING", [a2_1]);
+        await pool.query("INSERT INTO tareas (actividad_id, name, ponderacion_producto, fecha_inicio, fecha_fin, medio_verificacion, responsable_nombre) VALUES ($1, 'Optimización de 4 módulos para la Fase 4 del SITCOOP', 30.0, '2026-09-01', '2026-12-31', 'Resolución de aprobación', 'AFCOOP') ON CONFLICT (name, actividad_id) DO NOTHING", [a2_1]);
+
+        // --- MeGA 4: Creación de Cooperativas ---
+        const mega4 = await pool.query(`
+            INSERT INTO megas (code, name, estrategia_id, unit_id) 
+            VALUES ('M_CREAT_AFC', 'Se ha promocionado la creación de nuevas cooperativas en sectores estratégicos.', $1, $2)
+            ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name RETURNING id`, [estId, afcoopId]);
+        const m4 = mega4.rows[0].id;
+
+        const m4p1 = (await pool.query("INSERT INTO productos_intermedios (name, mega_id, ponderacion_total) VALUES ('1. Programa de fomento al empleo cooperativo.', $1, 50.00) ON CONFLICT (name, mega_id) DO UPDATE SET ponderacion_total = EXCLUDED.ponderacion_total RETURNING id", [m4])).rows[0].id;
+        const a4_1 = (await pool.query("INSERT INTO actividades (name, producto_id) VALUES ('Elaboración del programa de fomento', $1) ON CONFLICT (name, producto_id) DO UPDATE SET name = EXCLUDED.name RETURNING id", [m4p1])).rows[0].id;
+        await pool.query("INSERT INTO tareas (actividad_id, name, ponderacion_producto, fecha_inicio, fecha_fin, medio_verificacion, responsable_nombre) VALUES ($1, 'Presentación y aprobación del programa de fomento al empleo', 100.0, '2025-12-15', '2026-02-27', 'Programa aprobado', 'AFCOOP') ON CONFLICT (name, actividad_id) DO NOTHING", [a4_1]);
+
+        console.log('AFCOOP Example Data Seeded Successfully');
+    } catch (err) {
+        console.error('Seeding AFCOOP error:', err);
+    }
+}
+
+const seedFormulario1 = async () => {
+    try {
+        const mega = await pool.query("INSERT INTO megas (code, name, estrategia_id, unit_id) VALUES ('M_LGT', 'Se ha puesto en vigencia la nueva Ley General del Trabajo en Bolivia', (SELECT id FROM estrategias LIMIT 1), 15) ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name RETURNING id");
+        const megaId = mega.rows[0].id;
+
+        const prod = await pool.query("INSERT INTO productos_intermedios (name, mega_id, ponderacion_total) VALUES ('1 Cronograma de trabajo concertado con los Actores Sociales del País', $1, 100.00) ON CONFLICT (name, mega_id) DO UPDATE SET ponderacion_total = EXCLUDED.ponderacion_total RETURNING id", [megaId]);
+        const prodId = prod.rows[0].id;
+
+        const act = await pool.query("INSERT INTO actividades (name, producto_id) VALUES ('Mapeo de Actores Sociales involucrados con la nueva Reforma de la LGT', $1) ON CONFLICT (name, producto_id) DO UPDATE SET name = EXCLUDED.name RETURNING id", [prodId]);
+        const actId = act.rows[0].id;
+
+        await pool.query(`INSERT INTO tareas (actividad_id, name, ponderacion_producto, fecha_inicio, fecha_fin, medio_verificacion, responsable_nombre, responsable_cargo) 
+            VALUES ($1, 'Coordinación de información actualizada con los Jefes Departamentales de Trabajo', 10.0, '2026-02-15', '2026-02-20', 'Reportes de Información Departamental', 'Micaela Lola Cespedes Cadena', 'Directora General de Trabajo')
+            ON CONFLICT (name, actividad_id) DO UPDATE SET ponderacion_producto = EXCLUDED.ponderacion_producto`, [actId]);
+
+    } catch (err) {
+        console.error('Seeding Formulario 1 error:', err);
+    }
+}
+
+
+// Moved initDb() to bottom for testing
+
+
+// Audit Middleware Helper
+const logAudit = async (userId, action, tableName, recordId, oldData, newData) => {
+    try {
+        await pool.query(
+            'INSERT INTO auditoria (user_id, action, table_name, record_id, old_data, new_data) VALUES ($1, $2, $3, $4, $5, $6)',
+            [userId, action, tableName, recordId, oldData, newData]
+        );
+    } catch (err) {
+        console.error('Audit Log Error:', err);
+    }
+};
+
+const validateFechasTarea = async (actividadId, fInicio, fFin) => {
+    if (!fInicio && !fFin) return;
+    const { rows } = await pool.query(`
+        SELECT m.fecha_inicio as m_inicio, m.fecha_fin as m_fin, m.code as m_code 
+        FROM actividades a 
+        JOIN productos_intermedios p ON a.producto_id = p.id 
+        JOIN megas m ON p.mega_id = m.id 
+        WHERE a.id = $1
+    `, [actividadId]);
+    
+    if (rows.length > 0) {
+        const { m_inicio, m_fin, m_code } = rows[0];
+        if (m_inicio && fInicio && new Date(fInicio) < new Date(m_inicio)) {
+            // Need to correctly parse the dates to UTC so localDateString doesn't mis-shift
+            const formatted = new Date(m_inicio).toISOString().split('T')[0];
+            throw new Error(`La fecha de inicio no puede ser anterior a la del MeGA ${m_code} (${formatted}).`);
+        }
+        if (m_fin && fFin && new Date(fFin) > new Date(m_fin)) {
+            const formatted = new Date(m_fin).toISOString().split('T')[0];
+            throw new Error(`La fecha de fin no puede sobrepasar a la del MeGA ${m_code} (${formatted}).`);
+        }
+    }
+};
+
+// Generic CRUD Generator
+const registerCrud = (resource, tableName) => {
+    // Helper to get allowed columns from the database (optional, but let's just filter common joined fields for now)
+    const filterValidFields = (body) => {
+        const forbiddenPrefixes = ['current_', 'unit_', 'estrategia_', 'resultado_', 'eje_'];
+        const forbiddenSuffixes = ['_name', '_code', '_unidad'];
+        
+        return Object.keys(body).filter(key => {
+            // Never try to update columns that look like they come from a JOIN or calculation
+            if (forbiddenSuffixes.some(s => key.endsWith(s))) return false;
+            if (forbiddenPrefixes.some(p => key.startsWith(p) && key !== 'unit_id' && key !== 'estrategia_id')) return false;
+            // Also exclude ID as it's handled separately
+            if (key === 'id') return false;
+            return true;
+        });
+    };
+
+    app.get(`/api/${resource}`, async (req, res) => {
+        try {
+            const result = await pool.query(`SELECT * FROM ${tableName} ORDER BY id ASC`);
+            res.json(result.rows);
+        } catch (err) {
+            res.status(500).json({ error: err.message });
+        }
+    });
+
+    app.post(`/api/${resource}`, async (req, res) => {
+        const fields = filterValidFields(req.body);
+        const values = fields.map(f => req.body[f]);
+        const placeholders = fields.map((_, i) => `$${i + 1}`).join(', ');
+        try {
+            if (tableName === 'tareas' && (req.body.fecha_inicio || req.body.fecha_fin)) {
+                await validateFechasTarea(req.body.actividad_id, req.body.fecha_inicio, req.body.fecha_fin);
+            }
+            const result = await pool.query(
+                `INSERT INTO ${tableName} (${fields.join(', ')}) VALUES (${placeholders}) RETURNING *`,
+                values
+            );
+            await logAudit(req.headers['x-user-id'] || null, 'CREATE', tableName, result.rows[0].id, null, result.rows[0]);
+            res.status(201).json(result.rows[0]);
+        } catch (err) {
+            res.status(500).json({ error: err.message });
+        }
+    });
+
+    app.put(`/api/${resource}/:id`, async (req, res) => {
+        const { id } = req.params;
+        const fields = filterValidFields(req.body);
+        const values = [...fields.map(f => req.body[f]), id];
+        const setClause = fields.map((f, i) => `${f} = $${i + 1}`).join(', ');
+        try {
+            const oldRecord = await pool.query(`SELECT * FROM ${tableName} WHERE id = $1`, [id]);
+            if (oldRecord.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+            
+            if (tableName === 'tareas' && (req.body.fecha_inicio || req.body.fecha_fin)) {
+                const fInicio = req.body.fecha_inicio !== undefined ? req.body.fecha_inicio : oldRecord.rows[0].fecha_inicio;
+                const fFin = req.body.fecha_fin !== undefined ? req.body.fecha_fin : oldRecord.rows[0].fecha_fin;
+                const actId = req.body.actividad_id || oldRecord.rows[0].actividad_id;
+                await validateFechasTarea(actId, fInicio, fFin);
+            }
+
+            const result = await pool.query(
+                `UPDATE ${tableName} SET ${setClause} WHERE id = $${fields.length + 1} RETURNING *`,
+                values
+            );
+            await logAudit(req.headers['x-user-id'] || null, 'UPDATE', tableName, id, oldRecord.rows[0], result.rows[0]);
+            res.json(result.rows[0]);
+        } catch (err) {
+            console.error(`Error updating ${tableName}:`, err);
+            res.status(500).json({ error: err.message });
+        }
+    });
+
+    app.delete(`/api/${resource}/:id`, async (req, res) => {
+        const { id } = req.params;
+        try {
+            const oldRecord = await pool.query(`SELECT * FROM ${tableName} WHERE id = $1`, [id]);
+            await pool.query(`DELETE FROM ${tableName} WHERE id = $1`, [id]);
+            if (oldRecord.rows.length > 0) {
+                await logAudit(req.headers['x-user-id'] || null, 'DELETE', tableName, id, oldRecord.rows[0], null);
+            }
+            res.status(204).send();
+        } catch (err) {
+            res.status(500).json({ error: err.message });
+        }
+    });
+};
+
+// Specific Products with weighting check
+app.get('/api/productos_detail', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT p.*, m.name as mega_name 
+            FROM productos_intermedios p 
+            JOIN megas m ON p.mega_id = m.id 
+            ORDER BY p.id ASC
+        `);
+        res.json(result.rows);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/actividades_detail', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT a.*, p.name as producto_name, m.name as mega_name 
+            FROM actividades a 
+            JOIN productos_intermedios p ON a.producto_id = p.id 
+            JOIN megas m ON p.mega_id = m.id 
+            ORDER BY a.id ASC
+        `);
+        res.json(result.rows);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/tareas_detail', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT t.*, a.name as actividad_name, p.name as producto_name, m.name as mega_name 
+            FROM tareas t 
+            JOIN actividades a ON t.actividad_id = a.id 
+            JOIN productos_intermedios p ON a.producto_id = p.id 
+            JOIN megas m ON p.mega_id = m.id 
+            ORDER BY t.id ASC
+        `);
+        res.json(result.rows);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/productos', async (req, res) => {
+    const { name, mega_id, ponderacion_total } = req.body;
+    try {
+        const currentSumRes = await pool.query('SELECT SUM(ponderacion_total) as total FROM productos_intermedios WHERE mega_id = $1', [mega_id]);
+        const currentTotal = parseFloat(currentSumRes.rows[0].total || 0);
+        if (currentTotal + parseFloat(ponderacion_total) > 100.01) {
+            return res.status(400).json({ error: 'La ponderación total de los productos de este MeGA ya alcanzó o excede el 100%' });
+        }
+        const result = await pool.query('INSERT INTO productos_intermedios (name, mega_id, ponderacion_total) VALUES ($1, $2, $3) RETURNING *', [name, mega_id, ponderacion_total]);
+        await logAudit(req.headers['x-user-id'] || null, 'CREATE', 'productos_intermedios', result.rows[0].id, null, result.rows[0]);
+        res.status(201).json(result.rows[0]);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Recalculate progress chain only summing approved weekly updates
+const updateProgressChain = async (tareaId) => {
+    try {
+        // 1. Update Tarea (only approved updates)
+        await pool.query(`
+            UPDATE tareas 
+            SET avance_fisico = (
+                SELECT LEAST(COALESCE(SUM(avance_real), 0), ponderacion_producto) 
+                FROM avances_semanales 
+                WHERE tarea_id = $1 AND estado = 'Aprobado'
+            ) 
+            WHERE id = $1`, [tareaId]);
+        
+        // 2. Identify parents
+        const tareaInfo = await pool.query(`
+            SELECT a.producto_id, prod.mega_id 
+            FROM tareas t 
+            JOIN actividades a ON t.actividad_id = a.id 
+            JOIN productos_intermedios prod ON a.producto_id = prod.id 
+            WHERE t.id = $1`, [tareaId]);
+            
+        if (tareaInfo.rows.length > 0) {
+            const { producto_id, mega_id } = tareaInfo.rows[0];
+            
+            // 3. Update Producto Intermedio (SUM of its Tasks)
+            await pool.query(`
+                UPDATE productos_intermedios SET avance_fisico = (
+                    SELECT LEAST(COALESCE(SUM(avance_fisico), 0), 100) 
+                    FROM tareas t 
+                    JOIN actividades a ON t.actividad_id = a.id 
+                    WHERE a.producto_id = $1
+                ) WHERE id = $1`, [producto_id]);
+                
+            // 4. Update MeGA (SUM of weighted Products)
+            await pool.query(`
+                UPDATE megas SET avance_fisico = (
+                    SELECT LEAST(COALESCE(SUM(avance_fisico * ponderacion_total / 100.0), 0), 100) 
+                    FROM productos_intermedios 
+                    WHERE mega_id = $1
+                ) WHERE id = $1`, [mega_id]);
+        }
+    } catch (err) {
+        console.error('Error in progress chain update:', err);
+    }
+};
+
+app.get('/api/seguimiento/formulario1', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT 
+                m.id as mega_id,
+                m.code as mega_code,
+                m.name as mega_name, 
+                prod.name as producto_name, 
+                act.name as actividad_name, 
+                t.*,
+                CASE 
+                    WHEN t.avance_fisico >= t.ponderacion_producto AND EXISTS (
+                        SELECT 1 FROM avances_semanales 
+                        WHERE tarea_id = t.id AND estado = 'Aprobado' AND evidencia_url IS NOT NULL AND evidencia_url != ''
+                    ) THEN 'Terminado'
+                    WHEN t.fecha_fin < CURRENT_DATE AND t.avance_fisico < t.ponderacion_producto THEN 'Retrasado'
+                    WHEN CURRENT_DATE BETWEEN t.fecha_inicio AND t.fecha_fin AND t.avance_fisico > 0 THEN 'En Proceso'
+                    WHEN t.fecha_inicio > CURRENT_DATE THEN 'Pendiente'
+                    ELSE 'En Proceso'
+                END as estado_calculado,
+                (SELECT json_agg(json_build_object(
+                    'id', id,
+                    'semana', semana, 
+                    'avance', avance_real, 
+                    'observacion', observacion,
+                    'estado', estado,
+                    'evidencia', evidencia_url
+                 )) 
+                 FROM avances_semanales 
+                 WHERE tarea_id = t.id) as avances_historico
+            FROM megas m
+            JOIN productos_intermedios prod ON prod.mega_id = m.id
+            JOIN actividades act ON act.producto_id = prod.id
+            JOIN tareas t ON t.actividad_id = act.id
+            ORDER BY m.id, prod.id, act.id, t.id
+        `);
+        res.json(result.rows);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/avances-semanales', async (req, res) => {
+    const { tarea_id, semana, avance_real, observacion, evidencia_url } = req.body;
+    try {
+        const result = await pool.query(`
+            INSERT INTO avances_semanales (tarea_id, semana, avance_real, observacion, evidencia_url, estado)
+            VALUES ($1, $2, $3, $4, $5, 'Reportado')
+            ON CONFLICT (tarea_id, semana) DO UPDATE SET avance_real = $3, observacion = $4, evidencia_url = $5, estado = 'Reportado'
+            RETURNING *
+        `, [tarea_id, semana, avance_real, observacion, evidencia_url]);
+        
+        // Recalculate chain: will only sum approved ones, so this won't change current progres until approved
+        await updateProgressChain(tarea_id);
+        
+        res.json({ success: true, record: result.rows[0] });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/avances-semanales/validar', async (req, res) => {
+    const { id, estado } = req.body; 
+    try {
+        // Update weekly info and state
+        const result = await pool.query('UPDATE avances_semanales SET estado = $1 WHERE id = $2 RETURNING *', [estado, id]);
+        
+        if (result.rows.length > 0) {
+            // Trigger progress chain recalculation since state has changed to 'Aprobado' or something else
+            await updateProgressChain(result.rows[0].tarea_id);
+        }
+        
+        res.json(result.rows[0]);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/tareas', async (req, res) => {
+    const { 
+        actividad_id, name, ponderacion_producto, responsable_nombre, responsable_cargo, 
+        medio_verificacion, fecha_inicio, fecha_fin, user_id, director_id, code, 
+        tipo_avance, planograma, indicador, resultado_esperado, vinculada_poa 
+    } = req.body;
+    try {
+        await validateFechasTarea(actividad_id, fecha_inicio, fecha_fin);
+
+        const actInfo = await pool.query('SELECT producto_id FROM actividades WHERE id = $1', [actividad_id]);
+        if (actInfo.rows.length === 0) return res.status(400).json({ error: 'Actividad no encontrada' });
+        
+        const prodId = actInfo.rows[0].producto_id;
+        const currentSumRes = await pool.query(`
+            SELECT SUM(t.ponderacion_producto) as total 
+            FROM tareas t 
+            JOIN actividades a ON t.actividad_id = a.id 
+            WHERE a.producto_id = $1`, [prodId]);
+        const currentTotal = parseFloat(currentSumRes.rows[0].total || 0);
+        if (currentTotal + parseFloat(ponderacion_producto) > 100.01) {
+            return res.status(400).json({ error: 'La ponderación total de las tareas para este producto ya alcanzó o excede el 100%' });
+        }
+        const result = await pool.query(
+            `INSERT INTO tareas (
+                actividad_id, name, ponderacion_producto, responsable_nombre, responsable_cargo, 
+                medio_verificacion, fecha_inicio, fecha_fin, user_id, director_id, code, 
+                tipo_avance, planograma, indicador, resultado_esperado, vinculada_poa
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING *`,
+            [
+                actividad_id, name, ponderacion_producto, responsable_nombre, responsable_cargo, 
+                medio_verificacion, fecha_inicio, fecha_fin, user_id, director_id, code, 
+                tipo_avance || 'Semanal', planograma ? JSON.stringify(planograma) : null,
+                indicador, resultado_esperado, vinculada_poa || 'NO'
+            ]
+        );
+        res.status(201).json(result.rows[0]);
+    } catch (err) { 
+        if (err.message.includes('No se encontró') || err.message.includes('fecha') || err.message.includes('ponderación')) {
+            res.status(400).json({ error: err.message });
+        } else {
+            res.status(500).json({ error: err.message }); 
+        }
+    }
+});
+
+app.get('/api/megas_detail', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT m.*, e.code as estrategia_code, r.code as resultado_code, ej.code as eje_code, u.name as unit_name,
+            (SELECT SUM(ponderacion_total) FROM productos_intermedios WHERE mega_id = m.id) as current_weighting
+            FROM megas m
+            LEFT JOIN estrategias e ON m.estrategia_id = e.id
+            LEFT JOIN resultados r ON e.resultado_id = r.id
+            LEFT JOIN ejes ej ON r.eje_id = ej.id
+            LEFT JOIN unidades_organizacionales u ON m.unit_id = u.id
+            ORDER BY m.id ASC
+        `);
+        res.json(result.rows);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/dashboard-stats', async (req, res) => {
+    const { userId, role } = req.query;
+    try {
+        let megaFilter = '';
+        let taskFilter = '';
+        
+        if (role === 'Tecnico') {
+            taskFilter = `WHERE user_id = ${parseInt(userId)}`;
+            megaFilter = `WHERE unit_id IN (SELECT unit_id FROM usuarios WHERE id = ${parseInt(userId)})`;
+        } else if (role === 'Director') {
+            taskFilter = `WHERE director_id = ${parseInt(userId)}`;
+            megaFilter = `WHERE unit_id IN (SELECT unit_id FROM usuarios WHERE id = ${parseInt(userId)})`;
+        }
+
+        const megasProgress = await pool.query(`SELECT code, name, avance_fisico as progress FROM megas ${megaFilter} ORDER BY avance_fisico DESC LIMIT 8`);
+        const globalProgress = await pool.query(`SELECT COALESCE(AVG(avance_fisico), 0) as global FROM megas ${megaFilter}`);
+        
+        const semaphores = await pool.query(`
+            SELECT 
+                COUNT(*) FILTER (WHERE estado_calculado = 'Terminado') as green,
+                COUNT(*) FILTER (WHERE estado_calculado = 'En Proceso') as yellow,
+                COUNT(*) FILTER (WHERE estado_calculado = 'Retrasado') as red,
+                COUNT(*) FILTER (WHERE estado_calculado = 'Pendiente') as gray
+            FROM (
+                SELECT 
+                    CASE 
+                        WHEN avance_fisico >= ponderacion_producto AND EXISTS (
+                            SELECT 1 FROM avances_semanales 
+                            WHERE tarea_id = tareas.id AND estado = 'Aprobado' AND evidencia_url IS NOT NULL AND evidencia_url != ''
+                        ) THEN 'Terminado'
+                        WHEN fecha_fin < CURRENT_DATE AND (avance_fisico < ponderacion_producto OR avance_fisico IS NULL) THEN 'Retrasado'
+                        WHEN CURRENT_DATE BETWEEN fecha_inicio AND fecha_fin AND avance_fisico > 0 THEN 'En Proceso'
+                        WHEN fecha_inicio > CURRENT_DATE THEN 'Pendiente'
+                        ELSE 'En Proceso'
+                    END as estado_calculado
+                FROM tareas
+                ${taskFilter}
+            ) t
+        `);
+        
+        const unitsProgress = await pool.query(`
+            SELECT u.name, COALESCE(AVG(m.avance_fisico), 0) as progress
+            FROM unidades_organizacionales u
+            JOIN megas m ON m.unit_id = u.id
+            WHERE u.type = 'Unidad' OR u.type = 'Jefatura'
+            ${megaFilter ? ' AND ' + megaFilter.replace('WHERE ', '') : ''}
+            GROUP BY u.name
+            LIMIT 10
+        `);
+
+        // N3: Progress by Direccion (Macro level)
+        const dirsProgress = await pool.query(`
+            SELECT u.name, COALESCE(AVG(m.avance_fisico), 0) as progress
+            FROM unidades_organizacionales u
+            JOIN megas m ON m.unit_id = u.id
+            WHERE u.type = 'Direccion'
+            ${megaFilter ? ' AND ' + megaFilter.replace('WHERE ', '') : ''}
+            GROUP BY u.name
+            LIMIT 10
+        `);
+
+        // N3: Progress by Funcionario (Top performers vs critical)
+        const usersProgress = await pool.query(`
+            SELECT t.responsable_nombre, COALESCE(AVG(t.avance_fisico), 0) as progress, COUNT(*) as tasks
+            FROM tareas t
+            ${taskFilter ? taskFilter.replace('WHERE', 'WHERE t.') : ''}
+            GROUP BY t.responsable_nombre
+            ORDER BY progress DESC
+            LIMIT 10
+        `);
+
+        // Activity-level semaphore...
+        const activitiesStatus = await pool.query(`
+            SELECT 
+                a.id,
+                a.name,
+                prod.name as producto_name,
+                m.name as mega_name,
+                m.code as mega_code,
+                COUNT(t.id) as total_tareas,
+                ROUND(COALESCE(AVG(CASE WHEN t.ponderacion_producto > 0 
+                    THEN (t.avance_fisico / t.ponderacion_producto) * 100 
+                    ELSE 0 END), 0)) as avance_pct,
+                COUNT(t.id) FILTER (WHERE 
+                    t.avance_fisico >= t.ponderacion_producto AND
+                    EXISTS (SELECT 1 FROM avances_semanales av WHERE av.tarea_id = t.id AND av.estado = 'Aprobado')
+                ) as terminadas,
+                COUNT(t.id) FILTER (WHERE 
+                    t.fecha_fin < CURRENT_DATE AND (t.avance_fisico < t.ponderacion_producto OR t.avance_fisico IS NULL)
+                ) as retrasadas,
+                COUNT(t.id) FILTER (WHERE 
+                    CURRENT_DATE BETWEEN t.fecha_inicio AND t.fecha_fin AND t.avance_fisico > 0
+                    AND NOT (t.avance_fisico >= t.ponderacion_producto)
+                ) as en_proceso,
+                COUNT(t.id) FILTER (WHERE t.fecha_inicio > CURRENT_DATE) as pendientes
+            FROM actividades a
+            JOIN productos_intermedios prod ON a.producto_id = prod.id
+            JOIN megas m ON prod.mega_id = m.id
+            LEFT JOIN tareas t ON t.actividad_id = a.id
+            ${taskFilter ? taskFilter.replace('WHERE', 'WHERE t.') : ''}
+            GROUP BY a.id, a.name, prod.name, m.name, m.code
+            HAVING COUNT(t.id) > 0
+            ORDER BY retrasadas DESC, avance_pct ASC
+            LIMIT 20
+        `);
+
+        res.json({
+            global: parseFloat(globalProgress.rows[0]?.global || 0).toFixed(1),
+            semaphores: semaphores.rows[0],
+            megas: megasProgress.rows.map(m => ({
+                code: m.code,
+                name: m.name,
+                progress: parseFloat(m.progress || 0).toFixed(1)
+            })),
+            units: unitsProgress.rows.map(u => ({
+                name: u.name,
+                progress: parseFloat(u.progress).toFixed(1),
+                color: parseFloat(u.progress) > 70 ? '#10b981' : (parseFloat(u.progress) > 30 ? '#f59e0b' : '#ef4444')
+            })),
+            direcciones: dirsProgress.rows.map(d => ({
+                name: d.name,
+                progress: parseFloat(d.progress).toFixed(1)
+            })),
+            users: usersProgress.rows.map(u => ({
+                name: u.responsable_nombre,
+                progress: parseFloat(u.progress).toFixed(1),
+                tasks: u.tasks
+            })),
+            activities: activitiesStatus.rows.map(a => ({
+                id: a.id,
+                name: a.name,
+                producto_name: a.producto_name,
+                mega_name: a.mega_name,
+                mega_code: a.mega_code,
+                total: parseInt(a.total_tareas),
+                avance_pct: parseInt(a.avance_pct),
+                terminadas: parseInt(a.terminadas),
+                retrasadas: parseInt(a.retrasadas),
+                en_proceso: parseInt(a.en_proceso),
+                pendientes: parseInt(a.pendientes),
+                estado: parseInt(a.retrasadas) > 0 ? 'Retrasado' :
+                        parseInt(a.terminadas) === parseInt(a.total_tareas) ? 'Terminado' :
+                        parseInt(a.en_proceso) > 0 ? 'En Proceso' : 'Pendiente'
+            }))
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/usuarios', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT u.*, un.name as unidad 
+            FROM usuarios u 
+            LEFT JOIN unidades_organizacionales un ON u.unit_id = un.id 
+            ORDER BY u.id ASC
+        `);
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+registerCrud('ejes', 'ejes');
+registerCrud('resultados', 'resultados');
+registerCrud('estrategias', 'estrategias');
+registerCrud('megas', 'megas');
+registerCrud('productos', 'productos_intermedios');
+registerCrud('actividades', 'actividades');
+registerCrud('tareas', 'tareas');
+registerCrud('avances', 'avances_semanales');
+registerCrud('usuarios', 'usuarios');
+registerCrud('unidades', 'unidades_organizacionales');
+
+// Notificaciones para técnicos
+app.get('/api/notificaciones/:userId', async (req, res) => {
+    const { userId } = req.params;
+    try {
+        const result = await pool.query(`
+            SELECT id, name, fecha_fin, avance_fisico, 
+                CASE 
+                    WHEN avance_fisico = 100 THEN 'Terminado'
+                    WHEN avance_fisico < 100 AND fecha_fin < CURRENT_DATE THEN 'Retrasado'
+                    WHEN avance_fisico > 0 THEN 'En Proceso'
+                    ELSE 'Pendiente'
+                END as estado
+            FROM tareas 
+            WHERE user_id = $1 AND avance_fisico < 100
+            ORDER BY fecha_fin ASC
+        `, [userId]);
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Login
+app.post('/api/login', async (req, res) => {
+    const { username, password } = req.body;
+    try {
+        const result = await pool.query(`
+            SELECT u.*, un.name as unidad 
+            FROM usuarios u 
+            LEFT JOIN unidades_organizacionales un ON u.unit_id = un.id 
+            WHERE u.username = $1 AND u.password = $2
+        `, [username, password]);
+        
+        if (result.rows.length > 0) {
+            const user = result.rows[0];
+            delete user.password;
+            res.json(user);
+        } else {
+            res.status(401).json({ error: 'Credenciales inválidas' });
+        }
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Password Reset Endpoint
+app.post('/api/usuarios/:id/reset-password', async (req, res) => {
+    const { id } = req.params;
+    const { newPassword } = req.body;
+    try {
+        const oldUser = await pool.query('SELECT username, fullname FROM usuarios WHERE id = $1', [id]);
+        if (oldUser.rows.length === 0) return res.status(404).json({ error: 'Usuario no encontrado' });
+
+        await pool.query('UPDATE usuarios SET password = $1 WHERE id = $2', [newPassword, id]);
+        
+        await logAudit(
+            req.headers['x-user-id'] || null, 
+            'RESET_PASSWORD', 
+            'usuarios', 
+            id, 
+            { user: oldUser.rows[0].username }, 
+            { action: 'Password updated' }
+        );
+        
+        res.json({ message: 'Contraseña actualizada correctamente' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Audit log view
+app.get('/api/auditoria', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT a.*, u.fullname as user_name 
+            FROM auditoria a 
+            LEFT JOIN usuarios u ON a.user_id = u.id 
+            ORDER BY a.created_at DESC LIMIT 200
+        `);
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Formulario A Trimestral endpoint
+// Returns the full hierarchy with quarterly breakdown of approved advances
+app.get('/api/formulario-a-trimestral', async (req, res) => {
+    try {
+        const year = req.query.year || new Date().getFullYear();
+
+        // Full hierarchy with approved avances
+        const result = await pool.query(`
+            SELECT 
+                ej.code   AS eje_code,
+                ej.description AS eje_desc,
+                r.code    AS resultado_code,
+                r.description AS resultado_desc,
+                e.code    AS estrategia_code,
+                e.description AS estrategia_desc,
+                m.id      AS mega_id,
+                m.name    AS mega_name,
+                m.code    AS mega_code,
+                u.name    AS unidad_name,
+                prod.id   AS producto_id,
+                prod.name AS producto_name,
+                prod.ponderacion_total,
+                prod.avance_fisico AS producto_avance,
+                t.id      AS tarea_id,
+                t.name    AS tarea_name,
+                t.ponderacion_producto,
+                t.fecha_inicio,
+                t.fecha_fin,
+                t.responsable_nombre,
+                t.avance_fisico AS tarea_avance,
+
+                -- Q1: Jan-Mar
+                COALESCE((
+                    SELECT SUM(av.avance_real)
+                    FROM avances_semanales av
+                    WHERE av.tarea_id = t.id AND av.estado = 'Aprobado'
+                    AND (
+                        t.fecha_inicio + ((av.semana - 1) * INTERVAL '7 days') 
+                        BETWEEN make_date($1::int, 1, 1) AND make_date($1::int, 3, 31)
+                    )
+                ), 0) AS q1,
+
+                -- Q2: Apr-Jun
+                COALESCE((
+                    SELECT SUM(av.avance_real)
+                    FROM avances_semanales av
+                    WHERE av.tarea_id = t.id AND av.estado = 'Aprobado'
+                    AND (
+                        t.fecha_inicio + ((av.semana - 1) * INTERVAL '7 days') 
+                        BETWEEN make_date($1::int, 4, 1) AND make_date($1::int, 6, 30)
+                    )
+                ), 0) AS q2,
+
+                -- Q3: Jul-Sep
+                COALESCE((
+                    SELECT SUM(av.avance_real)
+                    FROM avances_semanales av
+                    WHERE av.tarea_id = t.id AND av.estado = 'Aprobado'
+                    AND (
+                        t.fecha_inicio + ((av.semana - 1) * INTERVAL '7 days') 
+                        BETWEEN make_date($1::int, 7, 1) AND make_date($1::int, 9, 30)
+                    )
+                ), 0) AS q3,
+
+                -- Q4: Oct-Dec
+                COALESCE((
+                    SELECT SUM(av.avance_real)
+                    FROM avances_semanales av
+                    WHERE av.tarea_id = t.id AND av.estado = 'Aprobado'
+                    AND (
+                        t.fecha_inicio + ((av.semana - 1) * INTERVAL '7 days') 
+                        BETWEEN make_date($1::int, 10, 1) AND make_date($1::int, 12, 31)
+                    )
+                ), 0) AS q4
+
+            FROM tareas t
+            JOIN actividades a   ON t.actividad_id = a.id
+            JOIN productos_intermedios prod ON a.producto_id = prod.id
+            JOIN megas m         ON prod.mega_id = m.id
+            LEFT JOIN estrategias e   ON m.estrategia_id = e.id
+            LEFT JOIN resultados r    ON e.resultado_id = r.id
+            LEFT JOIN ejes ej         ON r.eje_id = ej.id
+            LEFT JOIN unidades_organizacionales u ON m.unit_id = u.id
+            ORDER BY ej.code, r.code, e.code, m.id, prod.id, t.id
+        `, [year]);
+
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+if (process.env.NODE_ENV !== 'test') {
+    initDb().then(() => {
+        app.listen(port, () => {
+            console.log(`MeGAs Backend running on port ${port}`);
+        });
+    });
+}
+
+module.exports = { app, pool };
+// Seed MTEPS Organigram
+// Seed MTEPS Organigram
+const seedUnidades = async () => {
+    const count = await pool.query('SELECT COUNT(*) FROM unidades_organizacionales');
+    if (parseInt(count.rows[0].count) === 0) {
+        // --- NIVEL DIRECTIVO ---
+        const ministro = await pool.query("INSERT INTO unidades_organizacionales (name, type) VALUES ('Despacho del Ministro (a) de Trabajo, Empleo y Previsión Social', 'Ministro') RETURNING id");
+        const mId = ministro.rows[0].id;
+
+        // Operativo under Ministro
+        await pool.query("INSERT INTO unidades_organizacionales (name, type, parent_id) VALUES ('Jefatura de Gabinete', 'Unidad', $1)", [mId]);
+        await pool.query("INSERT INTO unidades_organizacionales (name, type, parent_id) VALUES ('Unidad de Comunicación', 'Unidad', $1)", [mId]);
+        await pool.query("INSERT INTO unidades_organizacionales (name, type, parent_id) VALUES ('Unidad de Auditoría Interna', 'Unidad', $1)", [mId]);
+        await pool.query("INSERT INTO unidades_organizacionales (name, type, parent_id) VALUES ('Unidad de Transparencia y Lucha contra la Corrupción', 'Unidad', $1)", [mId]);
+
+        // Ejecutivo under Ministro
+        const planif = await pool.query("INSERT INTO unidades_organizacionales (name, type, parent_id) VALUES ('Dirección General de Planificación', 'Direccion', $1) RETURNING id", [mId]);
+        await pool.query("INSERT INTO unidades_organizacionales (name, type, parent_id) VALUES ('Unidad de Tecnologías de la Información y Comunicación', 'Unidad', $1)", [planif.rows[0].id]);
+
+        const admin = await pool.query("INSERT INTO unidades_organizacionales (name, type, parent_id) VALUES ('Dirección General de Asuntos Administrativos', 'Direccion', $1) RETURNING id", [mId]);
+        await pool.query("INSERT INTO unidades_organizacionales (name, type, parent_id) VALUES ('Unidad Administrativa', 'Unidad', $1)", [admin.rows[0].id]);
+        await pool.query("INSERT INTO unidades_organizacionales (name, type, parent_id) VALUES ('Unidad Financiera', 'Unidad', $1)", [admin.rows[0].id]);
+        await pool.query("INSERT INTO unidades_organizacionales (name, type, parent_id) VALUES ('Unidad de Recursos Humanos', 'Unidad', $1)", [admin.rows[0].id]);
+
+        const juridica = await pool.query("INSERT INTO unidades_organizacionales (name, type, parent_id) VALUES ('Dirección General de Asuntos Jurídicos', 'Direccion', $1) RETURNING id", [mId]);
+        await pool.query("INSERT INTO unidades_organizacionales (name, type, parent_id) VALUES ('Unidad de Análisis Jurídico', 'Unidad', $1)", [juridica.rows[0].id]);
+        await pool.query("INSERT INTO unidades_organizacionales (name, type, parent_id) VALUES ('Unidad de Gestión Jurídica', 'Unidad', $1)", [juridica.rows[0].id]);
+
+        // --- NIVEL EJECUTIVO (VICEMINISTERIOS) ---
+        
+        // Viceministerio de Trabajo y Previsión Social
+        const vTrabajo = await pool.query("INSERT INTO unidades_organizacionales (name, type, parent_id) VALUES ('Viceministerio de Trabajo y Previsión Social', 'Viceministerio', $1) RETURNING id", [mId]);
+        const vtId = vTrabajo.rows[0].id;
+        
+        await pool.query("INSERT INTO unidades_organizacionales (name, type, parent_id) VALUES ('Dirección General de Políticas de Previsión Social', 'Direccion', $1)", [vtId]);
+        await pool.query("INSERT INTO unidades_organizacionales (name, type, parent_id) VALUES ('Dirección General de Asuntos Sindicales', 'Direccion', $1)", [vtId]);
+        await pool.query("INSERT INTO unidades_organizacionales (name, type, parent_id) VALUES ('Unidad de Derechos Fundamentales', 'Unidad', $1)", [vtId]);
+
+        const dgTrabajo = await pool.query("INSERT INTO unidades_organizacionales (name, type, parent_id) VALUES ('Dirección General de Trabajo, Higiene y Seguridad Ocupacional', 'Direccion', $1) RETURNING id", [vtId]);
+        const dgtId = dgTrabajo.rows[0].id;
+
+        // Jefaturas Departamentales y Regionales
+        const addJefatura = async (name, parent, regionales = []) => {
+            const res = await pool.query("INSERT INTO unidades_organizacionales (name, type, parent_id) VALUES ($1, 'Jefatura', $2) ON CONFLICT DO NOTHING RETURNING id", [name, parent]);
+            if (res.rows.length > 0) {
+                for (const r of regionales) {
+                    await pool.query("INSERT INTO unidades_organizacionales (name, type, parent_id) VALUES ($1, 'Jefatura', $2) ON CONFLICT DO NOTHING", [r, res.rows[0].id]);
+                }
+            }
+        };
+
+        await addJefatura('Jefatura Departamental de Trabajo La Paz', dgtId, ['Jefatura Regional de Trabajo El Alto']);
+        await addJefatura('Jefatura Departamental de Trabajo Santa Cruz', dgtId, ['Jefatura Regional de Trabajo Montero', 'Jefatura Regional de Trabajo Camiri', 'Jefatura Regional de Trabajo Puerto Suárez', 'Jefatura Regional de Trabajo Warnes']);
+        await addJefatura('Jefatura Departamental de Trabajo Cochabamba', dgtId, ['Jefatura Regional de Trabajo Chapare']);
+        await addJefatura('Jefatura Departamental de Trabajo Chuquisaca', dgtId, ['Jefatura Regional de Trabajo Monteagudo']);
+        await addJefatura('Jefatura Departamental de Trabajo Oruro', dgtId);
+        await addJefatura('Jefatura Departamental de Trabajo Potosí', dgtId, ['Jefatura Regional de Trabajo Tupiza', 'Jefatura Regional de Trabajo Villazón', 'Jefatura Regional de Trabajo Llallagua', 'Jefatura Regional de Trabajo Uyuni']);
+        await addJefatura('Jefatura Departamental de Trabajo Tarija', dgtId, ['Jefatura Regional de Trabajo Bermejo', 'Jefatura Regional de Trabajo Yacuiba', 'Jefatura Regional de Trabajo Villamontes']);
+        await addJefatura('Jefatura Departamental de Trabajo Beni', dgtId, ['Jefatura Regional de Trabajo Riberalta', 'Jefatura Regional de Trabajo Guayaramerín']);
+        await addJefatura('Jefatura Departamental de Trabajo Pando', dgtId);
+
+        // Viceministerio de Empleo, Servicio Civil y Cooperativas
+        const vEmpleo = await pool.query("INSERT INTO unidades_organizacionales (name, type, parent_id) VALUES ('Viceministerio de Empleo, Servicio Civil y Cooperativas', 'Viceministerio', $1) RETURNING id", [mId]);
+        const veId = vEmpleo.rows[0].id;
+
+        await pool.query("INSERT INTO unidades_organizacionales (name, type, parent_id) VALUES ('Dirección General de Empleo', 'Direccion', $1)", [veId]);
+        await pool.query("INSERT INTO unidades_organizacionales (name, type, parent_id) VALUES ('Dirección General de Políticas Públicas, Fomento, Protección y Promoción Cooperativa', 'Direccion', $1)", [veId]);
+
+        const dgsc = await pool.query("INSERT INTO unidades_organizacionales (name, type, parent_id) VALUES ('Dirección General del Servicio Civil', 'Direccion', $1) RETURNING id", [veId]);
+        const dgscId = dgsc.rows[0].id;
+        await pool.query("INSERT INTO unidades_organizacionales (name, type, parent_id) VALUES ('Unidad de Función Pública y Registro Plurinacional', 'Unidad', $1)", [dgscId]);
+        await pool.query("INSERT INTO unidades_organizacionales (name, type, parent_id) VALUES ('Unidad de Régimen Laboral e Impugnación', 'Unidad', $1)", [dgscId]);
+        await pool.query("INSERT INTO unidades_organizacionales (name, type, parent_id) VALUES ('Unidad de Capacitación, Ética y Desarrollo Normativo', 'Unidad', $1)", [dgscId]);
+
+        // ENTIDAD BAJO TUICIÓN
+        await pool.query("INSERT INTO unidades_organizacionales (name, type, parent_id) VALUES ('Autoridad de Fiscalización y Control de Cooperativas - AFCOOP', 'Direccion', $1)", [veId]);
+    }
+};
