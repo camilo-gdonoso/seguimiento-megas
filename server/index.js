@@ -226,7 +226,11 @@ const registerCrud = (resource, tableName) => {
 
     app.post(`/api/${resource}`, async (req, res) => {
         const fields = filterValidFields(req.body);
-        const values = fields.map(f => req.body[f]);
+        const values = fields.map(f => {
+            const val = req.body[f];
+            if (val && typeof val === 'object') return JSON.stringify(val);
+            return val;
+        });
         const placeholders = fields.map((_, i) => `$${i + 1}`).join(', ');
         try {
             if (tableName === 'tareas' && (req.body.fecha_inicio || req.body.fecha_fin)) {
@@ -246,7 +250,11 @@ const registerCrud = (resource, tableName) => {
     app.put(`/api/${resource}/:id`, async (req, res) => {
         const { id } = req.params;
         const fields = filterValidFields(req.body);
-        const values = [...fields.map(f => req.body[f]), id];
+        const values = [...fields.map(f => {
+            const val = req.body[f];
+            if (val && typeof val === 'object') return JSON.stringify(val);
+            return val;
+        }), id];
         const setClause = fields.map((f, i) => `${f} = $${i + 1}`).join(', ');
         try {
             const oldRecord = await pool.query(`SELECT * FROM ${tableName} WHERE id = $1`, [id]);
