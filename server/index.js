@@ -11,6 +11,7 @@ app.use(express.json({ limit: '50mb' }));
 
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
+    ssl: process.env.DATABASE_URL?.includes('neon.tech') ? { rejectUnauthorized: false } : false
 });
 
 
@@ -1113,17 +1114,26 @@ app.get('/api/formulario-a-trimestral', async (req, res) => {
     }
 });
 
+// Middleware for Vercel initialization
+let isDbInitialized = false;
+app.use(async (req, res, next) => {
+    if (process.env.VERCEL && !isDbInitialized) {
+        try {
+            await initDb();
+            isDbInitialized = true;
+        } catch (err) {
+            console.error('Error initializing DB on Vercel:', err);
+        }
+    }
+    next();
+});
+
 if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL) {
     initDb().then(() => {
         app.listen(port, () => {
             console.log(`MeGAs Backend running on port ${port}`);
         });
     });
-}
-
-// In serverless environments (Vercel), ensure DB is initialized before first request
-if (process.env.VERCEL) {
-    initDb();
 }
 
 module.exports = app;
