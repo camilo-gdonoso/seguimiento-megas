@@ -293,17 +293,22 @@ const Catalog = ({ user }) => {
       periods = Math.max(1, periods);
     }
     
-    const pesoTotal = parseFloat(contextData.ponderacion_producto);
+    const pesoTotal = parseFloat(contextData.ponderacion_producto || 0);
+    if (isNaN(pesoTotal) || pesoTotal <= 0) {
+      if (!overrideData) setAlertDialog({ isOpen: true, type: 'error', message: 'El peso de la tarea debe ser un número mayor a 0.' });
+      return;
+    }
+
     const split = parseFloat((pesoTotal / periods).toFixed(2));
-    
     const newPlan = [];
-    let sum = 0;
+    let sumSoFar = 0;
+    
     for (let i = 1; i <= periods; i++) {
         if (i === periods) {
-            newPlan.push({ periodo: i, valor: parseFloat((pesoTotal - sum).toFixed(2)) });
+            newPlan.push({ periodo: i, valor: parseFloat((pesoTotal - sumSoFar).toFixed(2)) });
         } else {
             newPlan.push({ periodo: i, valor: split });
-            sum += split;
+            sumSoFar += split;
         }
     }
     setFormData({ ...contextData, planograma: newPlan, tipo_avance: tipo });
