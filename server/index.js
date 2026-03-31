@@ -536,10 +536,10 @@ app.get('/api/dashboard-stats', async (req, res) => {
         const safeUserId = parseInt(userId || 0);
 
         if (role === 'Tecnico') {
-            taskFilter = `WHERE t.user_id = ${safeUserId}`;
+            taskFilter = `WHERE user_id = ${safeUserId}`;
             megaFilter = `WHERE unit_id IN (SELECT unit_id FROM usuarios WHERE id = ${safeUserId}) OR id IN (SELECT mega_id FROM productos_intermedios p JOIN actividades a ON a.producto_id = p.id JOIN tareas t ON t.actividad_id = a.id WHERE t.user_id = ${safeUserId})`;
         } else if (role === 'Director') {
-            taskFilter = `WHERE t.director_id = ${safeUserId}`;
+            taskFilter = `WHERE director_id = ${safeUserId}`;
             megaFilter = `WHERE unit_id IN (SELECT unit_id FROM usuarios WHERE id = ${safeUserId}) OR unit_id IS NULL OR id IN (SELECT mega_id FROM productos_intermedios p JOIN actividades a ON a.producto_id = p.id JOIN tareas t ON t.actividad_id = a.id WHERE t.director_id = ${safeUserId})`;
         }
 
