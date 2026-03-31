@@ -24,9 +24,21 @@ Si necesitas recrear la estructura o notas errores de "relation does not exist",
 -- 1. ESTRUCTURA DE JERARQUÍA Y USUARIOS
 CREATE TABLE IF NOT EXISTS unidades_organizacionales (id SERIAL PRIMARY KEY, name TEXT NOT NULL, type TEXT NOT NULL, parent_id INTEGER REFERENCES unidades_organizacionales(id) ON DELETE CASCADE);
 CREATE TABLE IF NOT EXISTS usuarios (id SERIAL PRIMARY KEY, username TEXT UNIQUE NOT NULL, password TEXT NOT NULL, role TEXT NOT NULL, fullname TEXT, unit_id INTEGER REFERENCES unidades_organizacionales(id) ON DELETE SET NULL);
-CREATE TABLE IF NOT EXISTS ejes (id SERIAL PRIMARY KEY, code TEXT NOT NULL UNIQUE, description TEXT NOT NULL);
-CREATE TABLE IF NOT EXISTS resultados (id SERIAL PRIMARY KEY, code TEXT NOT NULL UNIQUE, description TEXT NOT NULL, eje_id INTEGER REFERENCES ejes(id) ON DELETE CASCADE);
-CREATE TABLE IF NOT EXISTS estrategias (id SERIAL PRIMARY KEY, code TEXT NOT NULL UNIQUE, description TEXT NOT NULL, resultado_id INTEGER REFERENCES resultados(id) ON DELETE CASCADE);
+
+-- 2. ORGANIGRAMA OFICIAL MTEPS (Carga Maestro)
+TRUNCATE TABLE unidades_organizacionales RESTART IDENTITY CASCADE;
+INSERT INTO unidades_organizacionales (id, name, type) VALUES (1, 'Despacho del Ministro (a)', 'Ministro');
+INSERT INTO unidades_organizacionales (id, name, type, parent_id) VALUES 
+(2, 'Viceministerio de Trabajo y Previsión Social', 'Viceministerio', 1),
+(3, 'Viceministerio de Empleo, Servicio Civil y Cooperativas', 'Viceministerio', 1);
+INSERT INTO unidades_organizacionales (name, type, parent_id) VALUES 
+('Dir. Gral. de Planificación', 'Direccion', 1), ('Dir. Gral. Administrativa', 'Direccion', 1),
+('Dir. Gral. Jurídica', 'Direccion', 1), ('Dir. Gral. de Trabajo', 'Direccion', 2),
+('Dir. Gral. Previsión Social', 'Direccion', 2), ('Dir. Gral. Sindicales', 'Direccion', 2),
+('Dir. Gral. Empleo', 'Direccion', 3), ('Dir. Gral. Cooperativas', 'Direccion', 3),
+('Dir. Gral. Servicio Civil', 'Direccion', 3), ('AFCOOP', 'Direccion', 3);
+-- Jefaturas y Unidades adicionales según diagrama oficial...
+-- (Consultar script completo en server/index.js)
 
 -- 2. ESTRUCTURA DE SEGUIMIENTO (MeGAs)
 CREATE TABLE IF NOT EXISTS megas (id SERIAL PRIMARY KEY, code TEXT NOT NULL UNIQUE, name TEXT NOT NULL, estrategia_id INTEGER REFERENCES estrategias(id) ON DELETE CASCADE, unit_id INTEGER REFERENCES unidades_organizacionales(id) ON DELETE SET NULL, period TEXT DEFAULT '2026-2030', avance_fisico DECIMAL(5,2) DEFAULT 0.00);
