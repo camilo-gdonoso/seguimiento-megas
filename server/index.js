@@ -119,14 +119,8 @@ const initDb = async () => {
             END $$;
         `);
 
-        // 3. Seed Basic Data (Only if empty)
-        const unitsCheck = await pool.query('SELECT COUNT(*) FROM unidades_organizacionales');
-        if (parseInt(unitsCheck.rows[0].count) === 0) {
-            console.log('Seeding initial organigram...');
-            await seedUnidades();
-        } else {
-            console.log(`Skipping organigram seed, already has ${unitsCheck.rows[0].count} units.`);
-        }
+        // 3. Seed Basic Data (Manual seeding only for organigram)
+        // Auto-seed removed to respect manual deletions from the platform.
         
         await pool.query(`
             INSERT INTO ejes (code, description) VALUES 
@@ -1003,7 +997,15 @@ app.get('/api/formulario-a-trimestral', async (req, res) => {
                     )
                 ), 0) AS q1,
 
-                -- Q2: Apr-Jun
+// Manual Seed Endpoint (Admin only or Secret)
+app.post('/api/admin/seed-organigram', async (req, res) => {
+    try {
+        await seedUnidades();
+        res.json({ message: 'Organigram seeded successfully (52 nodes)' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
                 COALESCE((
                     SELECT SUM(av.avance_real)
                     FROM avances_semanales av
