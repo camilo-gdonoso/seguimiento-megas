@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Plus, Database, ChevronRight, Edit2, Trash2, Layers, Building, Search, ClipboardCheck, Shield, LayoutGrid, FileText } from 'lucide-react';
 import axios from 'axios';
 import HierarchyTree from '../components/HierarchyTree';
+import { ORGANIGRAM } from '../constants/organigram';
 
 const API_URL = '/api';
 
@@ -229,7 +230,7 @@ const Catalog = ({ user }) => {
         axios.get(`${API_URL}/usuarios`),
         axios.get(`${API_URL}/ejes`)
       ]);
-      setUnits(uRes.data);
+      setUnits(ORGANIGRAM);
       setEstrategias(eRes.data);
       setResultados(rRes.data);
       setMegas(mRes.data);
@@ -415,7 +416,7 @@ const Catalog = ({ user }) => {
               }}
             />
           </div>
-          {isAdmin && (
+          {isAdmin && activeTab !== 'organigrama' && (
             <button 
               className="btn-primary" 
               style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
@@ -594,7 +595,7 @@ const Catalog = ({ user }) => {
                       {parseFloat(item.ponderacion_producto || 0).toFixed(1)}%
                     </td>
                   )}
-                  {isAdmin && (
+                  {isAdmin && activeTab !== 'organigrama' && (
                     <td style={{ padding: '1.25rem', textAlign: 'right' }}>
                       <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
                         <button 
