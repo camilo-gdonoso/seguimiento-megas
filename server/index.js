@@ -358,9 +358,11 @@ const registerCrud = (resource, tableName) => {
         const forbiddenSuffixes = ['_name', '_code', '_unidad'];
         
         return Object.keys(body).filter(key => {
+            // ALWAYS allow relational IDs
+            if (key.endsWith('_id')) return true;
             // Never try to update columns that look like they come from a JOIN or calculation
             if (forbiddenSuffixes.some(s => key.endsWith(s))) return false;
-            if (forbiddenPrefixes.some(p => key.startsWith(p) && key !== 'unit_id' && key !== 'estrategia_id')) return false;
+            if (forbiddenPrefixes.some(p => key.startsWith(p))) return false;
             // Also exclude ID as it's handled separately
             if (key === 'id') return false;
             return true;
@@ -833,6 +835,28 @@ app.get('/api/usuarios', async (req, res) => {
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
+});
+
+// Specialized GET with JOINs for Catalog
+app.get('/api/resultados', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT r.*, e.code as eje_code FROM resultados r LEFT JOIN ejes e ON r.eje_id = e.id ORDER BY r.id ASC');
+        res.json(result.rows);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/estrategias', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT s.*, r.code as resultado_code FROM estrategias s LEFT JOIN resultados r ON s.resultado_id = r.id ORDER BY s.id ASC');
+        res.json(result.rows);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/megas', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT m.*, u.name as unit_name, s.code as estrategia_code FROM megas m LEFT JOIN unidades_organizacionales u ON m.unit_id = u.id LEFT JOIN estrategias s ON m.estrategia_id = s.id ORDER BY m.id ASC');
+        res.json(result.rows);
+    } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 registerCrud('ejes', 'ejes');
