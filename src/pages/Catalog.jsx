@@ -219,14 +219,15 @@ const Catalog = ({ user }) => {
 
   const fetchSupportData = async () => {
     try {
-      const [uRes, eRes, rRes, mRes, pRes, aRes, usrRes] = await Promise.all([
+      const [uRes, eRes, rRes, mRes, pRes, aRes, usrRes, ejeRes] = await Promise.all([
         axios.get(`${API_URL}/unidades`),
         axios.get(`${API_URL}/estrategias`),
         axios.get(`${API_URL}/resultados`),
         axios.get(`${API_URL}/megas`),
         axios.get(`${API_URL}/productos`),
         axios.get(`${API_URL}/actividades_detail`),
-        axios.get(`${API_URL}/usuarios`)
+        axios.get(`${API_URL}/usuarios`),
+        axios.get(`${API_URL}/ejes`)
       ]);
       setUnits(uRes.data);
       setEstrategias(eRes.data);
@@ -235,6 +236,7 @@ const Catalog = ({ user }) => {
       setProductos(pRes.data);
       setActividades(aRes.data);
       setUsers(usrRes.data);
+      setEjes(ejeRes.data);
     } catch (err) {
       console.error(err);
     }
