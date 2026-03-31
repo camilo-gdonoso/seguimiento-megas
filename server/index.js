@@ -85,9 +85,27 @@ const initDb = async () => {
             ('E98', 'Promoción de la minería responsable', (SELECT id FROM resultados WHERE code = 'R10'))
             ON CONFLICT (code) DO NOTHING;
 
-            INSERT INTO usuarios (username, password, role, fullname) 
-            VALUES ('admin', 'admin123', 'Admin', 'Administrador Sistema')
+            INSERT INTO usuarios (username, password, role, fullname, unit_id) 
+            VALUES ('admin', 'admin123', 'Admin', 'Administrador Sistema', 1)
             ON CONFLICT (username) DO NOTHING;
+        `);
+
+        // 4. Seed Samples and reset sequences
+        await seedMoreExamples();
+        await seedAfcoopData();
+        await seedFormulario1();
+
+        // 5. Reset all ID sequences to avoid 'Duplicate Key' errors during manual entry
+        await pool.query(`
+            SELECT setval(pg_get_serial_sequence('unidades_organizacionales', 'id'), coalesce(max(id), 1)) FROM unidades_organizacionales;
+            SELECT setval(pg_get_serial_sequence('usuarios', 'id'), coalesce(max(id), 1)) FROM usuarios;
+            SELECT setval(pg_get_serial_sequence('ejes', 'id'), coalesce(max(id), 1)) FROM ejes;
+            SELECT setval(pg_get_serial_sequence('resultados', 'id'), coalesce(max(id), 1)) FROM resultados;
+            SELECT setval(pg_get_serial_sequence('estrategias', 'id'), coalesce(max(id), 1)) FROM estrategias;
+            SELECT setval(pg_get_serial_sequence('megas', 'id'), coalesce(max(id), 1)) FROM megas;
+            SELECT setval(pg_get_serial_sequence('productos_intermedios', 'id'), coalesce(max(id), 1)) FROM productos_intermedios;
+            SELECT setval(pg_get_serial_sequence('actividades', 'id'), coalesce(max(id), 1)) FROM actividades;
+            SELECT setval(pg_get_serial_sequence('tareas', 'id'), coalesce(max(id), 1)) FROM tareas;
         `);
 
         console.log('Database Initialized and Seeded Successfully');
@@ -100,7 +118,7 @@ const seedMoreExamples = async () => {
     try {
         const estRes = await pool.query("SELECT id FROM estrategias LIMIT 1");
         const estId = estRes.rows[0].id;
-        const vmtpsId = 15; // Viceministerio de Trabajo y Previsión Social
+        const vmtpsId = 100; // Viceministerio de Trabajo y Previsión Social (Official Root)
 
         // --- MeGA: Digitalización Jefaturas ---
         const megaDigit = await pool.query(`
@@ -130,7 +148,7 @@ const seedMoreExamples = async () => {
         await pool.query("INSERT INTO tareas (actividad_id, name, ponderacion_producto, fecha_inicio, fecha_fin, medio_verificacion, responsable_nombre, responsable_cargo) VALUES ($1, 'Elaboración del proyecto de normativa para su implementación', 100.0, '2026-07-01', '2026-09-30', 'Informe Técnico', 'DGTHSO / Personal Técnico', 'UTIC') ON CONFLICT (name, actividad_id) DO NOTHING", [actPlat]);
 
         // --- MeGA: Nuevo Código de Seguridad Social ---
-        const dgppsId = 2; // Dirección General de Políticas de Previsión Social
+        const dgppsId = 110; // Dirección General de Políticas de Previsión Social
         const megaSegSoc = await pool.query(`
             INSERT INTO megas (code, name, estrategia_id, unit_id) 
             VALUES ('M_SEG_SOC', 'Se cuenta con un Anteproyectos de Ley del Nuevo Código de Seguridad Social y Ley de Código Único de Usuario', $1, $2)
@@ -159,7 +177,7 @@ const seedMoreExamples = async () => {
 const seedAfcoopData = async () => {
     try {
         const afcoopUnit = await pool.query("SELECT id FROM unidades_organizacionales WHERE name LIKE '%AFCOOP%' LIMIT 1");
-        const afcoopId = afcoopUnit.rows.length > 0 ? afcoopUnit.rows[0].id : 31;
+        const afcoopId = afcoopUnit.rows.length > 0 ? afcoopUnit.rows[0].id : 500;
         const estRes = await pool.query("SELECT id FROM estrategias WHERE code = 'E46' LIMIT 1");
         const estId = estRes.rows.length > 0 ? estRes.rows[0].id : 1;
 
@@ -221,7 +239,7 @@ const seedAfcoopData = async () => {
 
 const seedFormulario1 = async () => {
     try {
-        const mega = await pool.query("INSERT INTO megas (code, name, estrategia_id, unit_id) VALUES ('M_LGT', 'Se ha puesto en vigencia la nueva Ley General del Trabajo en Bolivia', (SELECT id FROM estrategias LIMIT 1), 15) ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name RETURNING id");
+        const mega = await pool.query("INSERT INTO megas (code, name, estrategia_id, unit_id) VALUES ('M_LGT', 'Se ha puesto en vigencia la nueva Ley General del Trabajo en Bolivia', (SELECT id FROM estrategias LIMIT 1), 100) ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name RETURNING id");
         const megaId = mega.rows[0].id;
 
         const prod = await pool.query("INSERT INTO productos_intermedios (name, mega_id, ponderacion_total) VALUES ('1 Cronograma de trabajo concertado con los Actores Sociales del País', $1, 100.00) ON CONFLICT (name, mega_id) DO UPDATE SET ponderacion_total = EXCLUDED.ponderacion_total RETURNING id", [megaId]);
@@ -957,7 +975,7 @@ let isDbInitialized = false;
 app.use(async (req, res, next) => {
     if (process.env.VERCEL && !isDbInitialized) {
         try {
-            // First ensure essential tables exist
+            // First ensure essential tables exist (Blocking)
             await pool.query(`
                 CREATE TABLE IF NOT EXISTS unidades_organizacionales (id SERIAL PRIMARY KEY, name TEXT NOT NULL, type TEXT NOT NULL, parent_id INTEGER);
                 CREATE TABLE IF NOT EXISTS usuarios (
@@ -977,11 +995,20 @@ app.use(async (req, res, next) => {
                 ON CONFLICT (username) DO NOTHING;
             `);
 
-            // Then run full initialization in background
-            initDb().catch(err => console.error('Full init error:', err));
+            // Check if full organigram exists, if not, wait for full init
+            const count = await pool.query('SELECT COUNT(*) FROM unidades_organizacionales');
+            if (parseInt(count.rows[0].count) < 10) {
+                console.log('Triggering Full Database Init...');
+                await initDb();
+            } else {
+                // background check for small updates
+                initDb().catch(err => console.error('Background init error:', err));
+            }
+            
             isDbInitialized = true;
         } catch (err) {
             console.error('Critical initialization error:', err);
+            // Don't set isDbInitialized to true so it retries next request
         }
     }
     next();
