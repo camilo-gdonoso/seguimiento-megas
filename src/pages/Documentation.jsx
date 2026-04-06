@@ -13,7 +13,7 @@ const Documentation = () => {
       steps: [
         { title: 'Configuración Estratégica', desc: 'Gestionar Ejes, Resultados y Estrategias en el Catálogo Institucional.' },
         { title: 'Gestión de MeGAs', desc: 'Vincular Metas de Gestión (MeGAs) a su Unidad Responsable y Estrategia Padre.' },
-        { title: 'Administración de Usuarios', desc: 'Crear perfiles, asignar roles (Director/Técnico) y vincularlos a su unidad.' },
+        { title: 'Administración de Usuarios', desc: 'Crear perfiles, asignar roles (Director/Funcionario) y vincularlos a su unidad.' },
         { title: 'Seguimiento Global', desc: 'Supervisar el avance físico consolidado de toda la institución en el Dashboard.' }
       ]
     },
@@ -23,13 +23,13 @@ const Documentation = () => {
       color: '#92400e',
       steps: [
         { title: 'Revisión de MeGAs', desc: 'Supervisar las MeGAs asignadas a su dirección y el progreso de sus productos.' },
-        { title: 'Validación de Formulario 1', desc: 'Verificar que los técnicos reporten avances semanalmente de forma coherente.' },
+        { title: 'Validación de Formulario 1', desc: 'Verificar que los funcionarios reporten avances semanalmente de forma coherente.' },
         { title: 'Análisis de Semáforos', desc: 'Identificar tareas retrasadas o en riesgo a través de los indicadores visuales.' },
         { title: 'Reportes de Cumplimiento', desc: 'Exportar estados de situación para reuniones de coordinación de gabinete.' }
       ]
     },
     tecnico: {
-      title: 'Manual: Técnico / Operador',
+      title: 'Manual: Funcionario',
       icon: <User size={32} />,
       color: '#15803d',
       steps: [
@@ -133,7 +133,7 @@ const Documentation = () => {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', position: 'relative' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', background: '#eff6ff', borderRadius: '10px' }}>
                     <FileText size={20} color="#3b82f6" />
-                    <div style={{ fontSize: '0.85rem' }}><strong>Técnico:</strong> Reporte Semanal + Evidencia Link</div>
+                    <div style={{ fontSize: '0.85rem' }}><strong>Funcionario:</strong> Reporte Semanal + Evidencia Link</div>
                   </div>
                   <div style={{ width: '2px', height: '20px', background: '#e2e8f0', marginLeft: '2rem' }} />
                   <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', background: '#fcf3cf', borderRadius: '10px' }}>

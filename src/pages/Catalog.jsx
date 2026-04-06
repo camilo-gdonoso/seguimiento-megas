@@ -875,14 +875,14 @@ const Catalog = ({ user }) => {
                     )}
                     <div style={{ gridColumn: 'span 2', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                       <div>
-                        <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.5rem', fontWeight: 700, color: '#475569' }}>Técnico Asignado</label>
+                        <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.5rem', fontWeight: 700, color: '#475569' }}>Funcionario Asignado</label>
                         <select 
                           required 
                           style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0' }} 
                           value={formData.user_id || ''} 
                           onChange={e => setFormData({...formData, user_id: e.target.value})}
                         >
-                          <option value="">Seleccionar Técnico...</option>
+                          <option value="">Seleccionar Funcionario...</option>
                           {availableTechnicians.map(u => <option key={u.id} value={u.id}>{u.fullname} ({u.role})</option>)}
                         </select>
                       </div>

@@ -112,7 +112,7 @@ const Users = ({ user: currentUser }) => {
     switch (role) {
       case 'Admin': return { bg: '#eef2ff', color: '#4338ca', label: 'Admin (Planificación)' };
       case 'Director': return { bg: '#fef3c7', color: '#92400e', label: 'Director / Jefe' };
-      case 'Tecnico': return { bg: '#dcfce7', color: '#15803d', label: 'Técnico / Operador' };
+      case 'Tecnico': return { bg: '#dcfce7', color: '#15803d', label: 'Funcionario' };
       case 'Auditor': return { bg: '#f1f5f9', color: '#475569', label: 'Auditor' };
       default: return { bg: '#f1f5f9', color: '#475569', label: role };
     }
@@ -225,7 +225,7 @@ const Users = ({ user: currentUser }) => {
                   <select required style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0' }} value={formData.role || ''} onChange={e => setFormData({...formData, role: e.target.value})}>
                     <option value="Admin">Admin (Planificación)</option>
                     <option value="Director">Director / Jefe</option>
-                    <option value="Tecnico">Técnico / Operador</option>
+                    <option value="Tecnico">Funcionario</option>
                     <option value="Auditor">Auditor</option>
                   </select>
                 </div>
