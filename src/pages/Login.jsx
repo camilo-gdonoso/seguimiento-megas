@@ -33,14 +33,14 @@ const Login = ({ onLogin }) => {
       alignItems: 'center',
       justifyContent: 'center',
       background: '#ffffff',
-      padding: '2rem'
+      padding: '4rem 2rem'
     }}>
       <motion.img 
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        src="/logo_ministerio_trabajo.png" 
+        src="/logo_ministerioa_trabajo.png" 
         alt="Ministerio de Trabajo" 
-        style={{ width: '400px', height: 'auto', marginBottom: '1.5rem' }} 
+        style={{ width: '420px', height: 'auto', marginBottom: '1rem' }} 
       />
 
       <motion.h1 
