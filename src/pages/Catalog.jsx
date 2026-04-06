@@ -541,43 +541,75 @@ const Catalog = ({ user }) => {
                       />
                     </div>
                   </td>
-                  <td colSpan="8" style={{ padding: '1rem' }}>
-                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  <td colSpan="8" style={{ padding: '1rem', background: '#f0f9ff' }}>
+                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
                       {activeTab === 'resultados' && (
-                         <select style={{ padding: '0.5rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.8rem' }} value={formData.eje_id || ''} onChange={e => setFormData({...formData, eje_id: e.target.value})}>
+                         <select 
+                           style={{ minWidth: '250px', padding: '0.6rem', borderRadius: '10px', border: '2px solid #3b82f6', background: 'white', fontWeight: 800, color: '#1e40af', outline: 'none', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }} 
+                           value={formData.eje_id || ''} 
+                           onChange={e => setFormData({...formData, eje_id: e.target.value})}
+                         >
                             <option value="">Vincular a Eje Estratégico...</option>
-                            {ejes.map(e => <option key={e.id} value={e.id}>{e.code}</option>)}
+                            {ejes.map(e => <option key={e.id} value={e.id}>{e.code}: {e.description?.substring(0, 30)}...</option>)}
                          </select>
                       )}
                       {activeTab === 'estrategias' && (
-                         <select style={{ padding: '0.5rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.8rem' }} value={formData.resultado_id || ''} onChange={e => setFormData({...formData, resultado_id: e.target.value})}>
+                         <select 
+                           style={{ minWidth: '250px', padding: '0.6rem', borderRadius: '10px', border: '2px solid #3b82f6', background: 'white', fontWeight: 800, color: '#1e40af', outline: 'none' }} 
+                           value={formData.resultado_id || ''} 
+                           onChange={e => setFormData({...formData, resultado_id: e.target.value})}
+                         >
                             <option value="">Vincular a Resultado Padre...</option>
-                            {resultados.map(r => <option key={r.id} value={r.id}>{r.code}</option>)}
+                            {resultados.map(r => <option key={r.id} value={r.id}>{r.code}: {r.description?.substring(0, 30)}...</option>)}
                          </select>
                       )}
                       {activeTab === 'megas' && (
-                         <select style={{ padding: '0.5rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.8rem' }} value={formData.estrategia_id || ''} onChange={e => setFormData({...formData, estrategia_id: e.target.value})}>
+                         <select 
+                           style={{ minWidth: '250px', padding: '0.6rem', borderRadius: '10px', border: '2px solid #3b82f6', background: 'white', fontWeight: 800, color: '#1e40af', outline: 'none' }} 
+                           value={formData.estrategia_id || ''} 
+                           onChange={e => setFormData({...formData, estrategia_id: e.target.value})}
+                         >
                             <option value="">Vincular a Estrategia...</option>
                             {estrategias.map(es => <option key={es.id} value={es.id}>{es.code}</option>)}
                          </select>
                       )}
                       {activeTab === 'productos' && (
-                         <select style={{ padding: '0.5rem', borderRadius: '6px', border: '1px solid #cbd5e1' }} value={formData.mega_id || ''} onChange={e => setFormData({...formData, mega_id: e.target.value})}>
+                         <select 
+                           style={{ minWidth: '250px', padding: '0.6rem', borderRadius: '10px', border: '2px solid #3b82f6', background: 'white', fontWeight: 800, color: '#1e40af', outline: 'none' }} 
+                           value={formData.mega_id || ''} 
+                           onChange={e => setFormData({...formData, mega_id: e.target.value})}
+                         >
                            <option value="">Vincular a MeGA...</option>
                            {megas.map(m => <option key={m.id} value={m.id}>{m.code}</option>)}
                          </select>
                       )}
                       {activeTab === 'actividades' && (
-                         <select style={{ padding: '0.5rem', borderRadius: '6px', border: '1px solid #cbd5e1' }} value={formData.producto_id || ''} onChange={e => setFormData({...formData, producto_id: e.target.value})}>
+                         <select 
+                           style={{ minWidth: '250px', padding: '0.6rem', borderRadius: '10px', border: '2px solid #3b82f6', background: 'white', fontWeight: 800, color: '#1e40af', outline: 'none' }} 
+                           value={formData.producto_id || ''} 
+                           onChange={e => setFormData({...formData, producto_id: e.target.value})}
+                         >
                            <option value="">Vincular a Producto...</option>
-                           {productos.map(p => <option key={p.id} value={p.id}>{p.name?.substring(0,30)}...</option>)}
+                           {productos.map(p => <option key={p.id} value={p.id}>{p.name?.substring(0,40)}...</option>)}
                          </select>
                       )}
                       <button 
                         onClick={handleSave} 
-                        style={{ padding: '0.5rem 1rem', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 700, cursor: 'pointer' }}
+                        style={{ 
+                          padding: '0.75rem 1.5rem', 
+                          background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)', 
+                          color: 'white', 
+                          border: 'none', 
+                          borderRadius: '12px', 
+                          fontWeight: 900, 
+                          cursor: 'pointer',
+                          boxShadow: '0 10px 15px -3px rgba(37, 99, 235, 0.3)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.5rem'
+                        }}
                       >
-                         + Registrar
+                         <Plus size={18} /> Registrar Registro
                       </button>
                     </div>
                   </td>
