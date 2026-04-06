@@ -201,7 +201,7 @@ const Monitoring = ({ user }) => {
   if (loading) return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
       <div className="animate-pulse" style={{ width: '60px', height: '60px', borderRadius: '50%', background: '#3b82f6', marginBottom: '1rem' }}></div>
-      <p style={{ color: '#64748b', fontWeight: 600 }}>Cargando Formulario de Seguimiento...</p>
+      <p style={{ color: '#64748b', fontWeight: 600 }}>Cargando Seguimiento de Actividades...</p>
     </div>
   );
 
@@ -210,7 +210,7 @@ const Monitoring = ({ user }) => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '3rem' }}>
         <div>
           <h1 style={{ fontSize: '2.5rem', fontWeight: 900, color: '#0f172a', letterSpacing: '-0.04em', lineHeight: 1.1 }}>
-            Formulario 1: <span style={{ color: '#2563eb' }}>Seguimiento Semanal</span>
+            Seguimiento de <span style={{ color: '#2563eb' }}>Actividades</span>
           </h1>
           <p style={{ color: '#64748b', marginTop: '0.75rem', fontSize: '1.1rem', fontWeight: 500, maxWidth: '600px' }}>
             Panel de control avanzado para el monitoreo del cumplimiento de productos intermedios y MeGAs institucionales.
@@ -233,40 +233,6 @@ const Monitoring = ({ user }) => {
           >
             <FileText size={20} /> Exportar Excel
           </button>
-          {user?.role === 'Admin' && (
-            <>
-              <button 
-                className="btn-primary" 
-                style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '0.6rem', 
-                  background: 'white', 
-                  color: '#10b981', 
-                  border: '2px solid #10b981',
-                  padding: '0.75rem 1.25rem',
-                  boxShadow: '0 4px 6px -1px rgba(16, 185, 129, 0.1)'
-                }}
-                onClick={() => { setFormData({ type: 'actividad' }); setIsModalOpen(true); }}
-              >
-                <Plus size={20} /> Nueva Actividad
-              </button>
-              <button 
-                className="btn-primary" 
-                style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '0.6rem', 
-                  background: '#2563eb',
-                  padding: '0.75rem 1.5rem',
-                  boxShadow: '0 10px 15px -3px rgba(37, 99, 235, 0.2)'
-                }}
-                onClick={() => { setFormData({ type: 'tarea' }); setIsModalOpen(true); }}
-              >
-                <Plus size={20} /> Nueva Tarea
-              </button>
-            </>
-          )}
         </div>
       </div>
 
@@ -597,64 +563,6 @@ const Monitoring = ({ user }) => {
         </div>
       </div>
 
-      {isModalOpen && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(5px)' }}>
-          <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="glass-card" style={{ width: '500px', padding: '2.5rem' }}>
-            <h2 style={{ marginBottom: '1.5rem', fontSize: '1.5rem', fontWeight: 800 }}>Nueva {formData.type === 'actividad' ? 'Actividad' : 'Tarea'}</h2>
-            <form onSubmit={handleSaveModal}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                {formData.type === 'actividad' ? (
-                  <>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, marginBottom: '0.4rem' }}>Producto Intermedio (Formulario A)</label>
-                      <select required style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0' }} value={formData.producto_id || ''} onChange={e => setFormData({...formData, producto_id: e.target.value})}>
-                        <option value="">Seleccionar Producto...</option>
-                        {productos.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, marginBottom: '0.4rem' }}>Nombre de la Actividad</label>
-                      <input required style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0' }} value={formData.name || ''} onChange={e => setFormData({...formData, name: e.target.value})} />
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, marginBottom: '0.4rem' }}>Actividad Padre</label>
-                      <select required style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0' }} value={formData.actividad_id || ''} onChange={e => setFormData({...formData, actividad_id: e.target.value})}>
-                        <option value="">Seleccionar Actividad...</option>
-                        {actividades.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, marginBottom: '0.4rem' }}>Nombre de la Tarea</label>
-                      <input required style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0' }} value={formData.name || ''} onChange={e => setFormData({...formData, name: e.target.value})} />
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, marginBottom: '0.4rem' }}>Ponderación %</label>
-                        <input required type="number" step="0.1" style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0' }} value={formData.ponderacion_producto || ''} onChange={e => setFormData({...formData, ponderacion_producto: e.target.value})} />
-                      </div>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, marginBottom: '0.4rem' }}>Medio Verificación</label>
-                        <input required style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0' }} value={formData.medio_verificacion || ''} onChange={e => setFormData({...formData, medio_verificacion: e.target.value})} />
-                      </div>
-                    </div>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, marginBottom: '0.4rem' }}>Responsable (Nombre y Cargo)</label>
-                      <input required placeholder="Ej: Micaela Lola - Directora" style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0' }} value={formData.responsable_nombre || ''} onChange={e => setFormData({...formData, responsable_nombre: e.target.value})} />
-                    </div>
-                  </>
-                )}
-              </div>
-              <div style={{ display: 'flex', gap: '1rem', marginTop: '2.5rem', justifyContent: 'flex-end' }}>
-                <button type="button" onClick={() => setIsModalOpen(false)} style={{ padding: '0.75rem 1.5rem', borderRadius: '10px', background: '#f1f5f9', border: 'none', fontWeight: 600 }}>Cancelar</button>
-                <button type="submit" className="btn-primary" style={{ padding: '0.75rem 2rem', borderRadius: '10px' }}>Guardar</button>
-              </div>
-            </form>
-          </motion.div>
-        </div>
-      )}
 
       {/* Integrated Report Modal */}
       {reportDialog.isOpen && (

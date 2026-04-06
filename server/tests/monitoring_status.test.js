@@ -1,6 +1,10 @@
 const request = require('supertest');
 const { app, pool } = require('../index');
 
+afterAll(async () => {
+    await pool.end();
+});
+
 describe('Monitoreo: Estados Automáticos y Cascada', () => {
 
     test('Lógica de Estados: Pendiente', async () => {
