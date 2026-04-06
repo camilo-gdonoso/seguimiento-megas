@@ -804,15 +804,67 @@ const Catalog = ({ user }) => {
             <form onSubmit={handleSave}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
                 {activeTab !== 'tareas' ? (
-                  <div style={{ display: 'grid', gridTemplateColumns: '150px 1fr', gap: '1.5rem' }}>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, marginBottom: '0.6rem', color: '#475569' }}>Código / ID</label>
-                      <input required style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '1px solid #cbd5e1', background: '#f8fafc', fontWeight: 700 }} value={formData.code || ''} onChange={e => setFormData({...formData, code: e.target.value})} />
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '150px 1fr', gap: '1.5rem' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, marginBottom: '0.6rem', color: '#475569' }}>Código / ID</label>
+                        <input required style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '1px solid #cbd5e1', background: '#f8fafc', fontWeight: 700 }} value={formData.code || ''} onChange={e => setFormData({...formData, code: e.target.value})} />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, marginBottom: '0.6rem', color: '#475569' }}>Descripción Detallada</label>
+                        <textarea required rows="3" style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '1px solid #cbd5e1', background: '#f8fafc', resize: 'none' }} value={formData.description || formData.name || ''} onChange={e => setFormData({...formData, [activeTab === 'resultados' || activeTab === 'ejes' || activeTab === 'estrategias' ? 'description' : 'name']: e.target.value})} />
+                      </div>
                     </div>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, marginBottom: '0.6rem', color: '#475569' }}>Descripción Detallada</label>
-                      <textarea required rows="3" style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '1px solid #cbd5e1', background: '#f8fafc', resize: 'none' }} value={formData.description || formData.name || ''} onChange={e => setFormData({...formData, [activeTab === 'resultados' || activeTab === 'ejes' || activeTab === 'estrategias' ? 'description' : 'name']: e.target.value})} />
-                    </div>
+
+                    {/* Dynamic Parent Linkage In Modal */}
+                    {['resultados', 'estrategias', 'megas', 'productos', 'actividades'].includes(activeTab) && (
+                      <div style={{ background: '#f0f9ff', padding: '1.5rem', borderRadius: '20px', border: '1px dashed #3b82f6' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', fontWeight: 800, marginBottom: '0.8rem', color: '#1e40af' }}>
+                          <Link2 size={18} /> Vinculación de Dependencia (Jerarquía)
+                        </label>
+                        
+                        {activeTab === 'resultados' && (
+                          <select required style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '2px solid #3b82f6', fontWeight: 700 }} value={formData.eje_id || ''} onChange={e => setFormData({...formData, eje_id: e.target.value})}>
+                            <option value="">Vincular a Eje Estratégico...</option>
+                            {ejes.map(e => <option key={e.id} value={e.id}>{e.code}: {e.description?.substring(0,60)}...</option>)}
+                          </select>
+                        )}
+
+                        {activeTab === 'estrategias' && (
+                          <select required style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '2px solid #3b82f6', fontWeight: 700 }} value={formData.resultado_id || ''} onChange={e => setFormData({...formData, resultado_id: e.target.value})}>
+                            <option value="">Vincular a Resultado Padre...</option>
+                            {resultados.map(r => <option key={r.id} value={r.id}>{r.code}: {r.description?.substring(0,60)}...</option>)}
+                          </select>
+                        )}
+
+                        {activeTab === 'megas' && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                            <select required style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '2px solid #3b82f6', fontWeight: 700 }} value={formData.estrategia_id || ''} onChange={e => setFormData({...formData, estrategia_id: e.target.value})}>
+                              <option value="">Vincular a Estratégica Institucional...</option>
+                              {estrategias.map(es => <option key={es.id} value={es.id}>{es.code}: {es.description?.substring(0,60)}...</option>)}
+                            </select>
+                            <select required style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '1px solid #cbd5e1' }} value={formData.unit_id || ''} onChange={e => setFormData({...formData, unit_id: e.target.value})}>
+                              <option value="">Asignar a Unidad/Dirección Responsable...</option>
+                              {units.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                            </select>
+                          </div>
+                        )}
+
+                        {activeTab === 'productos' && (
+                          <select required style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '2px solid #3b82f6', fontWeight: 700 }} value={formData.mega_id || ''} onChange={e => setFormData({...formData, mega_id: e.target.value})}>
+                            <option value="">Vincular a MeGA (Resultado)...</option>
+                            {megas.map(m => <option key={m.id} value={m.id}>{m.code}: {m.name?.substring(0,60)}...</option>)}
+                          </select>
+                        )}
+
+                        {activeTab === 'actividades' && (
+                          <select required style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '2px solid #3b82f6', fontWeight: 700 }} value={formData.producto_id || ''} onChange={e => setFormData({...formData, producto_id: e.target.value})}>
+                            <option value="">Vincular a Producto Intermedio...</option>
+                            {productos.map(p => <option key={p.id} value={p.id}>{p.code}: {p.name?.substring(0,60)}...</option>)}
+                          </select>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
