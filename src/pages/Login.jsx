@@ -35,23 +35,23 @@ const Login = ({ onLogin }) => {
       background: '#ffffff',
       padding: '3rem 2rem'
     }}>
-      <motion.img 
+      <motion.img
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        src="/logo_ministerioa_trabajo.png" 
-        alt="Ministerio de Trabajo" 
-        style={{ width: '280px', height: 'auto', marginBottom: '0.75rem' }} 
+        src="/logo_ministerioa_trabajo.png"
+        alt="Ministerio de Trabajo"
+        style={{ width: '280px', height: 'auto', marginBottom: '0.75rem' }}
       />
 
-      <motion.h1 
+      <motion.h1
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        style={{ 
-          fontSize: '1.4rem', 
-          fontWeight: 600, 
-          color: '#334155', 
-          marginBottom: '2rem', 
+        style={{
+          fontSize: '1.4rem',
+          fontWeight: 600,
+          color: '#334155',
+          marginBottom: '2rem',
           textAlign: 'center',
           maxWidth: '500px',
           lineHeight: 1.3
@@ -60,7 +60,7 @@ const Login = ({ onLogin }) => {
         Sistema de Seguimiento al Cumplimiento de MeGAs
       </motion.h1>
 
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ delay: 0.2 }}
@@ -89,8 +89,8 @@ const Login = ({ onLogin }) => {
             <label style={{ color: '#64748b', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.5rem', display: 'block' }}>Usuario</label>
             <div style={{ position: 'relative' }}>
               <User size={16} style={{ position: 'absolute', left: '14px', top: '13px', color: '#94a3b8' }} />
-              <input 
-                type="text" 
+              <input
+                type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 autoComplete="off"
@@ -99,7 +99,7 @@ const Login = ({ onLogin }) => {
                   width: '100%', padding: '0.75rem 1rem 0.75rem 2.5rem', background: '#f8fafc',
                   border: '1px solid #e2e8f0', borderRadius: '12px', color: '#1e293b',
                   fontSize: '0.9rem', outline: 'none'
-                }} 
+                }}
               />
             </div>
           </div>
@@ -108,8 +108,8 @@ const Login = ({ onLogin }) => {
             <label style={{ color: '#64748b', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.5rem', display: 'block' }}>Contraseña</label>
             <div style={{ position: 'relative' }}>
               <Lock size={16} style={{ position: 'absolute', left: '14px', top: '13px', color: '#94a3b8' }} />
-              <input 
-                type="password" 
+              <input
+                type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
@@ -117,19 +117,19 @@ const Login = ({ onLogin }) => {
                   width: '100%', padding: '0.75rem 1rem 0.75rem 2.5rem', background: '#f8fafc',
                   border: '1px solid #e2e8f0', borderRadius: '12px', color: '#1e293b',
                   fontSize: '0.9rem', outline: 'none'
-                }} 
+                }}
               />
             </div>
           </div>
 
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             disabled={loading}
-            className="btn-primary" 
-            style={{ 
-               width: '100%', padding: '0.85rem', borderRadius: '12px', boxSizing: 'border-box',
-               opacity: loading ? 0.7 : 1, fontWeight: 700, fontSize: '0.95rem',
-               boxShadow: '0 10px 15px -3px rgba(37, 99, 235, 0.2)'
+            className="btn-primary"
+            style={{
+              width: '100%', padding: '0.85rem', borderRadius: '12px', boxSizing: 'border-box',
+              opacity: loading ? 0.7 : 1, fontWeight: 700, fontSize: '0.95rem',
+              boxShadow: '0 10px 15px -3px rgba(37, 99, 235, 0.2)'
             }}
           >
             {loading ? 'Accediendo...' : 'Ingresar al Sistema'}

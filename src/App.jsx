@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { BrowserRouter as Router, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, FileText, Database, Users as UsersIcon, ShieldCheck, LogOut, Search, Activity, Book, Bell } from 'lucide-react';
+import { LayoutDashboard, FileText, Database, Users as UsersIcon, ShieldCheck, LogOut, Search, Activity, Book, Bell, Menu } from 'lucide-react';
 import Dashboard from './pages/Dashboard';
 import Catalog from './pages/Catalog';
 import Monitoring from './pages/Monitoring';
@@ -74,7 +74,7 @@ const Layout = ({ children, user, onLogout }) => {
               borderRadius: '8px', cursor: 'pointer', color: '#64748b'
             }}
           >
-            {isCollapsed ? <Search size={18} /> : <Search size={18} style={{ transform: 'rotate(180deg)' }} />}
+            <Menu size={18} />
           </button>
         </div>
         
