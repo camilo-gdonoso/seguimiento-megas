@@ -310,7 +310,7 @@ app.get('/api/productos_detail', async (req, res) => {
 app.get('/api/actividades_detail', async (req, res) => {
     try {
         const result = await pool.query(`
-            SELECT a.*, p.name as producto_name, m.name as mega_name 
+            SELECT a.*, p.name as producto_name, p.code as producto_code, m.name as mega_name, m.code as mega_code 
             FROM actividades a 
             JOIN productos_intermedios p ON a.producto_id = p.id 
             JOIN megas m ON p.mega_id = m.id 
@@ -323,7 +323,7 @@ app.get('/api/actividades_detail', async (req, res) => {
 app.get('/api/tareas_detail', async (req, res) => {
     try {
         const result = await pool.query(`
-            SELECT t.*, a.name as actividad_name, p.name as producto_name, m.name as mega_name 
+            SELECT t.*, a.name as actividad_name, a.code as actividad_code, p.name as producto_name, p.code as producto_code, m.name as mega_name, m.code as mega_code 
             FROM tareas t 
             JOIN actividades a ON t.actividad_id = a.id 
             JOIN productos_intermedios p ON a.producto_id = p.id 
