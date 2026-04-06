@@ -771,20 +771,34 @@ app.post('/api/login', async (req, res) => {
             SELECT u.*, un.name as unidad 
             FROM usuarios u 
             LEFT JOIN unidades_organizacionales un ON u.unit_id = un.id 
-            WHERE u.username = $1 AND u.password = $2
-        `, [username, password]);
+            WHERE u.username = $1
+        `, [username]);
 
-        if (result.rows.length > 0) {
-            const user = result.rows[0];
-            delete user.password;
-            res.json(user);
-        } else {
-            res.status(401).json({ error: 'Credenciales inválidas' });
+        if (result.rows.length === 0) {
+            return res.status(401).json({ error: 'Usuario no encontrado' });
         }
+
+        const user = result.rows[0];
+        if (user.password !== password) {
+            return res.status(401).json({ error: 'Contraseña incorrecta' });
+        }
+
+        delete user.password;
+        res.json(user);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
+
+// Seed function for critical users 
+async function ensureAdmin() {
+    try {
+        await pool.query("INSERT INTO usuarios (username, password, role, fullname, unit_id) VALUES ('admin', 'admin123', 'Admin', 'Administrador MeGAs', 1) ON CONFLICT (username) DO NOTHING");
+        await pool.query("INSERT INTO usuarios (username, password, role, fullname, unit_id) VALUES ('perez', 'perez123', 'Director', 'Director Pérez', 11) ON CONFLICT (username) DO NOTHING");
+        console.log('--- Resgate de Credenciales OK ---');
+    } catch(e) { console.error('Seed error:', e); }
+}
+ensureAdmin().catch(console.error);
 
 // Password Reset Endpoint
 app.post('/api/usuarios/:id/reset-password', async (req, res) => {
