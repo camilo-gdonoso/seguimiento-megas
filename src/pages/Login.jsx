@@ -65,55 +65,58 @@ const Login = ({ onLogin }) => {
         animate={{ opacity: 1, scale: 1 }}
         transition={{ delay: 0.2 }}
         style={{
-          width: '400px',
+          width: '420px',
           padding: '2.5rem',
-          background: '#1e293b',
+          background: '#ffffff',
           borderRadius: '24px',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-          color: 'white'
+          border: '1px solid #f1f5f9',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.08)',
+          color: '#1e293b'
         }}
       >
         {error && (
           <div style={{
-            background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)',
-            color: '#fca5a5', padding: '0.75rem', borderRadius: '8px', marginBottom: '1.5rem',
+            background: '#fef2f2', border: '1px solid #fee2e2',
+            color: '#991b1b', padding: '0.75rem', borderRadius: '12px', marginBottom: '1.5rem',
             fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem'
           }}>
-            <ShieldAlert size={16} /> {error}
+            <ShieldAlert size={18} /> {error}
           </div>
         )}
 
         <form onSubmit={handleSubmit} style={{ textAlign: 'left' }}>
           <div style={{ marginBottom: '1.25rem' }}>
-            <label style={{ color: '#94a3b8', fontSize: '0.85rem', marginBottom: '0.5rem', display: 'block' }}>Usuario</label>
+            <label style={{ color: '#64748b', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.6rem', display: 'block' }}>Usuario</label>
             <div style={{ position: 'relative' }}>
-              <User size={18} style={{ position: 'absolute', left: '12px', top: '12px', color: '#64748b' }} />
+              <User size={18} style={{ position: 'absolute', left: '14px', top: '14px', color: '#94a3b8' }} />
               <input 
                 type="text" 
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 autoComplete="off"
-                placeholder="Introduzca su usuario"
+                placeholder="Nombre de usuario"
                 style={{
-                  width: '100%', padding: '0.75rem 1rem 0.75rem 2.5rem', background: 'rgba(255, 255, 255, 0.05)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '12px', color: 'white'
+                  width: '100%', padding: '0.85rem 1rem 0.85rem 2.75rem', background: '#f8fafc',
+                  border: '1px solid #e2e8f0', borderRadius: '14px', color: '#1e293b',
+                  fontSize: '0.95rem', outline: 'none'
                 }} 
               />
             </div>
           </div>
 
-          <div style={{ marginBottom: '2rem' }}>
-            <label style={{ color: '#94a3b8', fontSize: '0.85rem', marginBottom: '0.5rem', display: 'block' }}>Contraseña</label>
+          <div style={{ marginBottom: '2.25rem' }}>
+            <label style={{ color: '#64748b', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.6rem', display: 'block' }}>Contraseña</label>
             <div style={{ position: 'relative' }}>
-              <Lock size={18} style={{ position: 'absolute', left: '12px', top: '12px', color: '#64748b' }} />
+              <Lock size={18} style={{ position: 'absolute', left: '14px', top: '14px', color: '#94a3b8' }} />
               <input 
                 type="password" 
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 style={{
-                  width: '100%', padding: '0.75rem 1rem 0.75rem 2.5rem', background: 'rgba(255, 255, 255, 0.05)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '12px', color: 'white'
+                  width: '100%', padding: '0.85rem 1rem 0.85rem 2.75rem', background: '#f8fafc',
+                  border: '1px solid #e2e8f0', borderRadius: '14px', color: '#1e293b',
+                  fontSize: '0.95rem', outline: 'none'
                 }} 
               />
             </div>
@@ -123,7 +126,11 @@ const Login = ({ onLogin }) => {
             type="submit" 
             disabled={loading}
             className="btn-primary" 
-            style={{ width: '100%', padding: '1rem', borderRadius: '12px', opacity: loading ? 0.7 : 1, fontWeight: 600 }}
+            style={{ 
+               width: '100%', padding: '1rem', borderRadius: '14px', boxSizing: 'border-box',
+               opacity: loading ? 0.7 : 1, fontWeight: 700, fontSize: '1rem',
+               boxShadow: '0 10px 15px -3px rgba(37, 99, 235, 0.3)'
+            }}
           >
             {loading ? 'Accediendo...' : 'Ingresar al Sistema'}
           </button>
