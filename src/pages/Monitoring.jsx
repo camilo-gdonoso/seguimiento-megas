@@ -290,12 +290,16 @@ const Monitoring = ({ user }) => {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#f8fafc', borderBottom: '2px solid #f1f5f9' }}>
-                <th style={{ textAlign: 'left', padding: '1.5rem', color: '#475569', fontSize: '0.85rem', fontWeight: 800 }}>ESTRUCTURA ESTRATÉGICA (MeGA / Prod / Act / Tarea)</th>
-                <th style={{ textAlign: 'center', padding: '1.5rem', color: '#475569', fontSize: '0.85rem', fontWeight: 800 }}>PESO</th>
-                <th style={{ textAlign: 'center', padding: '1.5rem', color: '#475569', fontSize: '0.85rem', fontWeight: 800 }}>PERÍODO</th>
-                <th style={{ textAlign: 'center', padding: '1rem', color: '#475569', fontSize: '0.85rem', fontWeight: 800 }}>AVANCE (PLAN Vs REAL)</th>
-                <th style={{ textAlign: 'center', padding: '1.5rem', color: '#475569', fontSize: '0.85rem', fontWeight: 800, minWidth: '120px' }}>PROGRESO</th>
-                <th style={{ textAlign: 'left', padding: '1.5rem', color: '#475569', fontSize: '0.85rem', fontWeight: 800 }}>RESPONSABLE</th>
+                <th style={{ padding: '1rem', fontSize: '0.65rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase', minWidth: '150px' }}>MeGAs (2030)</th>
+                <th style={{ padding: '1rem', fontSize: '0.65rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase', minWidth: '150px' }}>PRODUCTOS (100%)</th>
+                <th style={{ padding: '1rem', fontSize: '0.65rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase', minWidth: '150px' }}>ACTIVIDADES</th>
+                <th style={{ padding: '1rem', fontSize: '0.65rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase', minWidth: '150px' }}>TAREAS DE CUMPLIMIENTO</th>
+                <th style={{ textAlign: 'center', padding: '1rem', color: '#475569', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase' }}>PESO (%)</th>
+                <th style={{ textAlign: 'center', padding: '1rem', color: '#475569', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', minWidth: '100px' }}>INICIO / FIN</th>
+                <th style={{ textAlign: 'center', padding: '1rem', color: '#475569', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase' }}>MEDIO VERIF.</th>
+                <th style={{ textAlign: 'center', padding: '1rem', color: '#475569', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase' }}>AVANCE (PLAN Vs REAL)</th>
+                <th style={{ textAlign: 'center', padding: '1rem', color: '#475569', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', minWidth: '120px' }}>PROGRESO</th>
+                <th style={{ textAlign: 'left', padding: '1.5rem', color: '#475569', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase' }}>RESPONSABLE</th>
               </tr>
             </thead>
             <tbody>
@@ -318,49 +322,21 @@ const Monitoring = ({ user }) => {
                       transition={{ delay: idx * 0.05 }}
                       style={{ borderBottom: '1px solid #f1f5f9', background: idx % 2 === 0 ? 'white' : '#fcfdfe' }}
                     >
-                      <td style={{ padding: '1.5rem', maxWidth: '450px' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-                          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start', marginBottom: '0.2rem' }}>
-                            <span style={{ fontSize: '0.65rem', padding: '0.2rem 0.4rem', background: '#3b82f6', color: 'white', borderRadius: '4px', fontWeight: 800, whiteSpace: 'nowrap' }}>{row.mega_code || 'MeGA'}</span>
-                            <span style={{ fontSize: '0.75rem', color: '#1e293b', fontWeight: 800, lineHeight: 1.2 }}>{row.mega_name}</span>
-                          </div>
-                          <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'flex-start', marginBottom: '0.2rem', padding: '0.3rem 0.4rem', background: '#f8fafc', borderRadius: '6px', borderLeft: '2px solid #0ea5e9' }}>
-                            <span style={{ fontSize: '0.65rem', color: '#0369a1', fontWeight: 800, whiteSpace: 'nowrap' }}>Prod:</span>
-                            <span style={{ fontSize: '0.7rem', color: '#475569', fontWeight: 700, lineHeight: 1.2 }}>{row.producto_name}</span>
-                          </div>
-                          <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600, marginTop: '0.2rem' }}>Act: {row.actividad_name}</span>
-                          <span style={{ fontSize: '0.95rem', fontWeight: 800, color: '#0f172a', marginTop: '0.2rem' }}>{row.name}</span>
-                          <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.4rem', alignItems: 'center' }}>
-                            <span style={{ 
-                              fontSize: '0.65rem', padding: '0.2rem 0.5rem', borderRadius: '6px', fontWeight: 800,
-                              background: row.estado_calculado === 'Terminado' ? '#dcfce7' : 
-                                          row.estado_calculado === 'Retrasado' ? '#fee2e2' :
-                                          row.estado_calculado === 'En Proceso' ? '#fef9c3' : '#f1f5f9',
-                              color: row.estado_calculado === 'Terminado' ? '#166534' : 
-                                     row.estado_calculado === 'Retrasado' ? '#991b1b' :
-                                     row.estado_calculado === 'En Proceso' ? '#854d0e' : '#475569',
-                              border: `1px solid ${
-                                row.estado_calculado === 'Terminado' ? '#bbf7d0' : 
-                                row.estado_calculado === 'Retrasado' ? '#fecaca' :
-                                row.estado_calculado === 'En Proceso' ? '#fef08a' : '#e2e8f0'
-                              }`
-                            }}>
-                              {row.estado_calculado}
-                            </span>
-                            <span title={row.medio_verificacion} style={{ fontSize: '0.65rem', padding: '0.2rem 0.5rem', background: '#f1f5f9', borderRadius: '6px', color: '#475569', display: 'flex', alignItems: 'center', gap: '0.3rem', fontWeight: 600 }}>
-                              <FileText size={12} /> {row.medio_verificacion?.substring(0, 25) || 'S/M'}
-                            </span>
-                          </div>
-                        </div>
-                      </td>
-                      <td style={{ textAlign: 'center', fontWeight: 900, color: '#1e293b', fontSize: '0.9rem' }}>
+                      <td style={{ padding: '0.75rem', fontSize: '0.75rem', color: '#475569', fontWeight: 600 }}>{row.mega_code} - {row.mega_name?.substring(0,40)}...</td>
+                      <td style={{ padding: '0.75rem', fontSize: '0.75rem', color: '#64748b' }}>{row.producto_name?.substring(0,50)}...</td>
+                      <td style={{ padding: '0.75rem', fontSize: '0.75rem', color: '#64748b' }}>{row.actividad_name?.substring(0,50)}...</td>
+                      <td style={{ padding: '0.75rem', color: '#0f172a', fontWeight: 800, fontSize: '0.8rem' }}>{row.name}</td>
+                      <td style={{ textAlign: 'center', fontWeight: 900, color: '#2563eb', fontSize: '0.9rem' }}>
                         {parseFloat(row.ponderacion_producto || 0).toFixed(1)}%
                       </td>
-                      <td style={{ textAlign: 'center', padding: '1rem' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', fontSize: '0.7rem', color: '#64748b', fontWeight: 600 }}>
+                      <td style={{ textAlign: 'center', padding: '0.75rem' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', fontSize: '0.65rem', color: '#64748b', fontWeight: 700 }}>
                            <span style={{ color: '#059669' }}>{row.fecha_inicio ? new Date(row.fecha_inicio).toLocaleDateString() : '--'}</span>
                            <span style={{ color: '#dc2626' }}>{row.fecha_fin ? new Date(row.fecha_fin).toLocaleDateString() : '--'}</span>
                         </div>
+                      </td>
+                      <td style={{ textAlign: 'center', fontSize: '0.7rem', color: '#94a3b8' }}>
+                         {row.medio_verificacion || '--'}
                       </td>
                       
                       <td style={{ textAlign: 'left', padding: '0.5rem' }}>
