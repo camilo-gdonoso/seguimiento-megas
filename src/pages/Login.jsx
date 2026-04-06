@@ -33,14 +33,14 @@ const Login = ({ onLogin }) => {
       alignItems: 'center',
       justifyContent: 'center',
       background: '#ffffff',
-      padding: '4rem 2rem'
+      padding: '3rem 2rem'
     }}>
       <motion.img 
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         src="/logo_ministerioa_trabajo.png" 
         alt="Ministerio de Trabajo" 
-        style={{ width: '420px', height: 'auto', marginBottom: '1rem' }} 
+        style={{ width: '280px', height: 'auto', marginBottom: '0.75rem' }} 
       />
 
       <motion.h1 
@@ -48,13 +48,13 @@ const Login = ({ onLogin }) => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
         style={{ 
-          fontSize: '1.75rem', 
-          fontWeight: 700, 
-          color: '#1e293b', 
-          marginBottom: '2.5rem', 
+          fontSize: '1.4rem', 
+          fontWeight: 600, 
+          color: '#334155', 
+          marginBottom: '2rem', 
           textAlign: 'center',
-          maxWidth: '600px',
-          lineHeight: 1.2
+          maxWidth: '500px',
+          lineHeight: 1.3
         }}
       >
         Sistema de Seguimiento al Cumplimiento de MeGAs
