@@ -566,22 +566,26 @@ const Catalog = ({ user }) => {
                 </tr>
               )}
               <tr style={{ background: '#f1f5f9', borderBottom: '1px solid #e2e8f0' }}>
-                <th style={{ padding: '1.25rem', fontSize: '0.75rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase' }}>
-                  {activeTab === 'tareas' ? 'RESULTADO MeGA / PRODUCTO / ACTIVIDAD' : 'CÓDIGO / DESCRIPCIÓN'}
-                </th>
+                {activeTab === 'tareas' ? (
+                  <>
+                    <th style={{ padding: '1rem', fontSize: '0.65rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase', minWidth: '150px' }}>RESULTADOS PROPUESTOS POR LA INSTITUCIÓN AL 2030 (MeGAs)</th>
+                    <th style={{ padding: '1rem', fontSize: '0.65rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase', minWidth: '150px' }}>PRODUCTOS INTERMEDIOS PROPUESTOS POR LA ENTIDAD (100%)</th>
+                    <th style={{ padding: '1rem', fontSize: '0.65rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase', minWidth: '150px' }}>ACTIVIDADES A REALIZAR</th>
+                    <th style={{ padding: '1rem', fontSize: '0.65rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase', minWidth: '150px' }}>TAREAS DE CUMPLIMIENTO</th>
+                    <th style={{ padding: '1rem', fontSize: '0.65rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase' }}>PONDERACIÓN RESPECTO AL PRODUCTO</th>
+                    <th style={{ padding: '1rem', fontSize: '0.65rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase' }}>FECHA DE INICIO</th>
+                    <th style={{ padding: '1rem', fontSize: '0.65rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase' }}>FECHA DE FIN</th>
+                    <th style={{ padding: '1rem', fontSize: '0.65rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase' }}>MEDIO DE VERIFICACIÓN</th>
+                    <th style={{ padding: '1rem', fontSize: '0.65rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase' }}>RESPONSABLES (NOMBRE Y CARGO)</th>
+                  </>
+                ) : (
+                   <th style={{ padding: '1.25rem', fontSize: '0.75rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase' }}>CÓDIGO / DESCRIPCIÓN</th>
+                )}
                 {activeTab === 'resultados' && <th style={{ padding: '1.25rem', fontSize: '0.75rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase' }}>EJE ESTRATÉGICO</th>}
                 {activeTab === 'estrategias' && <th style={{ padding: '1.25rem', fontSize: '0.75rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase' }}>RESULTADO PADRE</th>}
                 {activeTab === 'megas' && <th style={{ padding: '1.25rem', fontSize: '0.75rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase' }}>ESTRATEGIA VINCULADA</th>}
                 {activeTab === 'productos' && <th style={{ padding: '1.25rem', fontSize: '0.75rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase' }}>MeGA ASOCIADO</th>}
                 {activeTab === 'actividades' && <th style={{ padding: '1.25rem', fontSize: '0.75rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase' }}>PRODUCTO INTERMEDIO</th>}
-                {activeTab === 'tareas' && (
-                  <>
-                    <th style={{ padding: '1.25rem', fontSize: '0.75rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase' }}>TAREA DE CUMPLIMIENTO</th>
-                    <th style={{ padding: '1.25rem', fontSize: '0.75rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase' }}>PESO % (PRODUCTO)</th>
-                    <th style={{ padding: '1.25rem', fontSize: '0.75rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase' }}>CRONOGRAMA (INICIO - FIN)</th>
-                    <th style={{ padding: '1.25rem', fontSize: '0.75rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase' }}>RESPONSABLES (CARGO)</th>
-                  </>
-                )}
                 {activeTab === 'megas' && <th style={{ padding: '1.25rem', fontSize: '0.75rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase' }}>AVANCE FÍSICO</th>}
                 {activeTab === 'productos' && <th style={{ padding: '1.25rem', fontSize: '0.75rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase' }}>PESO % MeGA</th>}
                 {isAdmin && <th style={{ padding: '1.25rem', fontSize: '0.75rem', color: '#475569', fontWeight: 800, textAlign: 'right', textTransform: 'uppercase' }}>ACCIONES</th>}
@@ -589,39 +593,28 @@ const Catalog = ({ user }) => {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan="12" style={{ padding: '3rem', textAlign: 'center', color: '#64748b' }}>Cargando matriz institucional...</td></tr>
+                <tr><td colSpan="15" style={{ padding: '3rem', textAlign: 'center', color: '#64748b' }}>Cargando matriz institucional...</td></tr>
               ) : data.length === 0 ? (
-                <tr><td colSpan="12" style={{ padding: '3rem', textAlign: 'center', color: '#64748b' }}>No hay registros cargados</td></tr>
+                <tr><td colSpan="15" style={{ padding: '3rem', textAlign: 'center', color: '#64748b' }}>No hay registros cargados</td></tr>
               ) : filteredData.length === 0 ? (
-                <tr><td colSpan="12" style={{ padding: '3rem', textAlign: 'center', color: '#64748b' }}>No se encontraron coincidencias</td></tr>
+                <tr><td colSpan="15" style={{ padding: '3rem', textAlign: 'center', color: '#64748b' }}>No se encontraron coincidencias</td></tr>
               ) : filteredData.map(item => (
-                <tr key={item.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                  <td style={{ padding: '1.25rem', fontSize: '0.85rem' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                      {activeTab === 'tareas' ? (
-                        <>
-                          <div style={{ display: 'flex', gap: '0.4rem', borderLeft: '3px solid #3b82f6', paddingLeft: '0.5rem' }}>
-                             <span style={{ fontWeight: 800, color: '#2563eb', fontSize: '0.7rem' }}>MeGA:</span> 
-                             <span style={{ fontWeight: 600, color: '#475569' }}>{item.mega_code}</span>
-                          </div>
-                          <div style={{ display: 'flex', gap: '0.4rem', borderLeft: '3px solid #10b981', paddingLeft: '0.5rem' }}>
-                             <span style={{ fontWeight: 800, color: '#059669', fontSize: '0.7rem' }}>PROD:</span> 
-                             <span style={{ color: '#64748b' }}>{item.producto_name?.substring(0,40)}...</span>
-                          </div>
-                          <div style={{ display: 'flex', gap: '0.4rem', borderLeft: '3px solid #f59e0b', paddingLeft: '0.5rem' }}>
-                             <span style={{ fontWeight: 800, color: '#d97706', fontSize: '0.7rem' }}>ACT:</span> 
-                             <span style={{ color: '#64748b' }}>{item.actividad_name}</span>
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          {item.code && <span style={{ fontSize: '0.7rem', color: '#3b82f6', fontWeight: 900 }}>{item.code}</span>}
-                          <span style={{ fontWeight: 600, color: '#1e293b' }}>{item.description || item.name}</span>
-                          {activeTab === 'megas' && <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Unidad: {item.unit_name || 'N/A'}</div>}
-                        </>
-                      )}
-                    </div>
-                  </td>
+                <tr key={item.id} style={{ borderBottom: '1px solid #f1f5f9', fontSize: '0.8rem' }}>
+                  {activeTab === 'tareas' ? (
+                    <>
+                       <td style={{ padding: '1rem', color: '#475569', fontWeight: 600 }}>{item.mega_code} - {item.mega_name?.substring(0,60)}...</td>
+                       <td style={{ padding: '1rem', color: '#64748b' }}>{item.producto_name?.substring(0,80)}...</td>
+                       <td style={{ padding: '1rem', color: '#64748b' }}>{item.actividad_name}</td>
+                    </>
+                  ) : (
+                    <td style={{ padding: '1.25rem' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                        {item.code && <span style={{ fontSize: '0.7rem', color: '#3b82f6', fontWeight: 900 }}>{item.code}</span>}
+                        <span style={{ fontWeight: 600, color: '#1e293b' }}>{item.description || item.name}</span>
+                        {activeTab === 'megas' && <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Unidad: {item.unit_name || 'N/A'}</div>}
+                      </div>
+                    </td>
+                  )}
                   {activeTab === 'resultados' && (
                     <td style={{ padding: '1.25rem', fontSize: '0.85rem', color: '#64748b' }}>
                       <span style={{ background: '#fef3c7', padding: '0.2rem 0.6rem', borderRadius: '4px', fontWeight: 700, color: '#92400e' }}>
@@ -629,7 +622,7 @@ const Catalog = ({ user }) => {
                       </span>
                     </td>
                   )}
-                   {activeTab === 'estrategias' && (
+                  {activeTab === 'estrategias' && (
                     <td style={{ padding: '1.25rem', fontSize: '0.85rem', color: '#64748b' }}>
                       <span style={{ background: '#e0f2fe', padding: '0.2rem 0.6rem', borderRadius: '4px', fontWeight: 700, color: '#0369a1' }}>
                         {resultados.find(r => Number(r.id) === Number(item.resultado_id))?.code || '---'}
@@ -648,25 +641,28 @@ const Catalog = ({ user }) => {
                   )}
                   {activeTab === 'tareas' && (
                     <>
-                      <td style={{ padding: '1.25rem', fontSize: '0.9rem', color: '#1e293b', fontWeight: 700, borderLeft: '1px solid #f1f5f9' }}>
+                      <td style={{ padding: '1rem', color: '#1e293b', fontWeight: 700 }}>
                         <div style={{ display: 'flex', flexDirection: 'column' }}>
-                          <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 800 }}>{item.code}</span>
-                          {item.name}
+                           <span style={{ fontSize: '0.65rem', color: '#64748b' }}>{item.code}</span>
+                           {item.name}
                         </div>
                       </td>
-                      <td style={{ padding: '1.25rem', fontSize: '0.9rem', fontWeight: 900, color: '#2563eb' }}>
+                      <td style={{ padding: '1rem', color: '#2563eb', fontWeight: 900, textAlign: 'center' }}>
                         {parseFloat(item.ponderacion_producto || 0).toFixed(1)}%
                       </td>
-                      <td style={{ padding: '1.25rem', fontSize: '0.8rem', color: '#475569', fontWeight: 600 }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                          <span style={{ color: '#94a3b8', fontSize: '0.65rem' }}>INICIO: {item.fecha_inicio ? new Date(item.fecha_inicio).toLocaleDateString() : '---'}</span>
-                          <span style={{ color: '#94a3b8', fontSize: '0.65rem' }}>FIN: {item.fecha_fin ? new Date(item.fecha_fin).toLocaleDateString() : '---'}</span>
-                        </div>
+                      <td style={{ padding: '1rem', color: '#475569', fontWeight: 600 }}>
+                        {item.fecha_inicio ? new Date(item.fecha_inicio).toLocaleDateString() : '---'}
                       </td>
-                      <td style={{ padding: '1.25rem', fontSize: '0.85rem', color: '#475569', fontWeight: 700 }}>
+                      <td style={{ padding: '1rem', color: '#475569', fontWeight: 600 }}>
+                        {item.fecha_fin ? new Date(item.fecha_fin).toLocaleDateString() : '---'}
+                      </td>
+                      <td style={{ padding: '1rem', color: '#64748b', fontSize: '0.75rem' }}>
+                        {item.medio_verificacion || '---'}
+                      </td>
+                      <td style={{ padding: '1rem', color: '#475569', fontWeight: 700 }}>
                         <div style={{ display: 'flex', flexDirection: 'column' }}>
                            <span>{item.responsable_nombre || '---'}</span>
-                           <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 500 }}>{item.responsable_cargo || '---'}</span>
+                           <span style={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: 500 }}>{item.responsable_cargo || '---'}</span>
                         </div>
                       </td>
                     </>
