@@ -65,8 +65,8 @@ const Login = ({ onLogin }) => {
         animate={{ opacity: 1, scale: 1 }}
         transition={{ delay: 0.2 }}
         style={{
-          width: '420px',
-          padding: '2.5rem',
+          width: '360px',
+          padding: '2rem',
           background: '#ffffff',
           borderRadius: '24px',
           border: '1px solid #f1f5f9',
@@ -85,10 +85,10 @@ const Login = ({ onLogin }) => {
         )}
 
         <form onSubmit={handleSubmit} style={{ textAlign: 'left' }}>
-          <div style={{ marginBottom: '1.25rem' }}>
-            <label style={{ color: '#64748b', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.6rem', display: 'block' }}>Usuario</label>
+          <div style={{ marginBottom: '1rem' }}>
+            <label style={{ color: '#64748b', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.5rem', display: 'block' }}>Usuario</label>
             <div style={{ position: 'relative' }}>
-              <User size={18} style={{ position: 'absolute', left: '14px', top: '14px', color: '#94a3b8' }} />
+              <User size={16} style={{ position: 'absolute', left: '14px', top: '13px', color: '#94a3b8' }} />
               <input 
                 type="text" 
                 value={username}
@@ -96,27 +96,27 @@ const Login = ({ onLogin }) => {
                 autoComplete="off"
                 placeholder="Nombre de usuario"
                 style={{
-                  width: '100%', padding: '0.85rem 1rem 0.85rem 2.75rem', background: '#f8fafc',
-                  border: '1px solid #e2e8f0', borderRadius: '14px', color: '#1e293b',
-                  fontSize: '0.95rem', outline: 'none'
+                  width: '100%', padding: '0.75rem 1rem 0.75rem 2.5rem', background: '#f8fafc',
+                  border: '1px solid #e2e8f0', borderRadius: '12px', color: '#1e293b',
+                  fontSize: '0.9rem', outline: 'none'
                 }} 
               />
             </div>
           </div>
 
-          <div style={{ marginBottom: '2.25rem' }}>
-            <label style={{ color: '#64748b', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.6rem', display: 'block' }}>Contraseña</label>
+          <div style={{ marginBottom: '1.75rem' }}>
+            <label style={{ color: '#64748b', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.5rem', display: 'block' }}>Contraseña</label>
             <div style={{ position: 'relative' }}>
-              <Lock size={18} style={{ position: 'absolute', left: '14px', top: '14px', color: '#94a3b8' }} />
+              <Lock size={16} style={{ position: 'absolute', left: '14px', top: '13px', color: '#94a3b8' }} />
               <input 
                 type="password" 
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 style={{
-                  width: '100%', padding: '0.85rem 1rem 0.85rem 2.75rem', background: '#f8fafc',
-                  border: '1px solid #e2e8f0', borderRadius: '14px', color: '#1e293b',
-                  fontSize: '0.95rem', outline: 'none'
+                  width: '100%', padding: '0.75rem 1rem 0.75rem 2.5rem', background: '#f8fafc',
+                  border: '1px solid #e2e8f0', borderRadius: '12px', color: '#1e293b',
+                  fontSize: '0.9rem', outline: 'none'
                 }} 
               />
             </div>
@@ -127,9 +127,9 @@ const Login = ({ onLogin }) => {
             disabled={loading}
             className="btn-primary" 
             style={{ 
-               width: '100%', padding: '1rem', borderRadius: '14px', boxSizing: 'border-box',
-               opacity: loading ? 0.7 : 1, fontWeight: 700, fontSize: '1rem',
-               boxShadow: '0 10px 15px -3px rgba(37, 99, 235, 0.3)'
+               width: '100%', padding: '0.85rem', borderRadius: '12px', boxSizing: 'border-box',
+               opacity: loading ? 0.7 : 1, fontWeight: 700, fontSize: '0.95rem',
+               boxShadow: '0 10px 15px -3px rgba(37, 99, 235, 0.2)'
             }}
           >
             {loading ? 'Accediendo...' : 'Ingresar al Sistema'}
