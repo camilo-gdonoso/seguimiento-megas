@@ -558,8 +558,8 @@ app.get('/api/dashboard-stats', async (req, res) => {
             megaFilter = `WHERE m.unit_id = ${unitId || 0} OR m.id IN (SELECT mega_id FROM productos_intermedios p JOIN actividades a ON a.producto_id = p.id JOIN tareas t ON t.actividad_id = a.id WHERE t.director_id = ${safeUserId})`;
         }
 
-        const megasProgress = await pool.query(`SELECT m.code, m.name, m.avance_fisico as progress FROM megas m ${megaFilter.replace('m.', '')} ORDER BY m.avance_fisico DESC LIMIT 8`);
-        const globalProgress = await pool.query(`SELECT COALESCE(AVG(m.avance_fisico), 0) as global FROM megas m ${megaFilter.replace('m.', '')}`);
+        const megasProgress = await pool.query(`SELECT m.code, m.name, m.avance_fisico as progress FROM megas m ${megaFilter} ORDER BY m.avance_fisico DESC LIMIT 8`);
+        const globalProgress = await pool.query(`SELECT COALESCE(AVG(m.avance_fisico), 0) as global FROM megas m ${megaFilter}`);
 
         const semaphores = await pool.query(`
             SELECT 
@@ -572,14 +572,14 @@ app.get('/api/dashboard-stats', async (req, res) => {
                     CASE 
                         WHEN avance_fisico >= ponderacion_producto AND EXISTS (
                             SELECT 1 FROM avances_semanales 
-                            WHERE tarea_id = tareas.id AND estado = 'Aprobado' AND evidencia_url IS NOT NULL AND evidencia_url != ''
+                            WHERE tarea_id = t.id AND estado = 'Aprobado' AND evidencia_url IS NOT NULL AND evidencia_url != ''
                         ) THEN 'Terminado'
                         WHEN fecha_fin < CURRENT_DATE AND (avance_fisico < ponderacion_producto OR avance_fisico IS NULL) THEN 'Retrasado'
                         WHEN CURRENT_DATE BETWEEN fecha_inicio AND fecha_fin AND avance_fisico > 0 THEN 'En Proceso'
                         WHEN fecha_inicio > CURRENT_DATE THEN 'Pendiente'
                         ELSE 'En Proceso'
                     END as estado_calculado
-                FROM tareas
+                FROM tareas t
                 ${taskFilter}
             ) t
         `);
@@ -609,7 +609,7 @@ app.get('/api/dashboard-stats', async (req, res) => {
         const usersProgress = await pool.query(`
             SELECT t.responsable_nombre, COALESCE(AVG(t.avance_fisico), 0) as progress, COUNT(*) as tasks
             FROM tareas t
-            ${taskFilter ? taskFilter.replace('WHERE', 'WHERE t.') : ''}
+            ${taskFilter}
             GROUP BY t.responsable_nombre
             ORDER BY progress DESC
             LIMIT 10
@@ -643,7 +643,7 @@ app.get('/api/dashboard-stats', async (req, res) => {
             JOIN productos_intermedios prod ON a.producto_id = prod.id
             JOIN megas m ON prod.mega_id = m.id
             LEFT JOIN tareas t ON t.actividad_id = a.id
-            ${taskFilter ? taskFilter.replace('WHERE', 'WHERE t.') : ''}
+            ${taskFilter}
             GROUP BY a.id, a.name, prod.name, m.name, m.code
             HAVING COUNT(t.id) > 0
             ORDER BY retrasadas DESC, avance_pct ASC
