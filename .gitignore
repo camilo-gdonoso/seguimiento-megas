@@ -31,7 +31,6 @@ antigravity/
 .ai/
 artifacts/
 *.webp
-*.png
 er_diagram_*.png
 data_model.doc*
 ModeloDatosER*.docx
