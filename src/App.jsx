@@ -14,6 +14,7 @@ const Layout = ({ children, user, onLogout }) => {
   const location = useLocation();
   const isActive = (path) => location.pathname === path;
   const [notifs, setNotifs] = useState([]);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   useEffect(() => {
     if (user?.id) {
@@ -29,64 +30,118 @@ const Layout = ({ children, user, onLogout }) => {
     }
   }, [user]);
 
-  return (
-    <div className="layout">
-      <aside className="sidebar">
-        <div className="logo-section" style={{ marginBottom: '2.5rem' }}>
-          <h2 style={{ fontSize: '1.25rem', color: '#2563eb', fontWeight: 800 }}>SISTEMA MeGAs</h2>
-          <p style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 600 }}>Caminando hacia la Agenda 50/50</p>
-        </div>
-        
-        <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-          <Link to="/" className={`nav-link ${isActive('/') ? 'active' : ''}`}>
-            <LayoutDashboard size={20} /> Dashboard
-          </Link>
-          <Link to="/segui" className={`nav-link ${isActive('/segui') ? 'active' : ''}`}>
-             <Activity size={20} /> Seguimiento
-          </Link>
-          <Link to="/catalogo" className={`nav-link ${isActive('/catalogo') ? 'active' : ''}`}>
-            <Database size={20} /> Catálogo Institucional
-          </Link>
-          {user?.role === 'Admin' && (
-            <Link to="/usuarios" className={`nav-link ${isActive('/usuarios') ? 'active' : ''}`}>
-              <UsersIcon size={20} /> Usuarios
-            </Link>
-          )}
-          <Link to="/auditoria" className={`nav-link ${isActive('/auditoria') ? 'active' : ''}`}>
-            <ShieldCheck size={20} /> Auditoría
-          </Link>
-          <Link to="/documentacion" className={`nav-link ${isActive('/documentacion') ? 'active' : ''}`}>
-            <Book size={20} /> Ayuda / Manual
-          </Link>
-        </nav>
+  const toggleSidebar = () => setIsCollapsed(!isCollapsed);
 
-        <div style={{ marginTop: 'auto', borderTop: '1px solid #f1f5f9', paddingTop: '1.5rem' }}>
-          <div style={{ marginBottom: '1rem', padding: '0 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div>
-              <p style={{ fontSize: '0.9rem', fontWeight: 600, color: '#1e293b' }}>{user?.fullname}</p>
-              <p style={{ fontSize: '0.7rem', color: '#64748b' }}>{user?.role} - {user?.unidad}</p>
-            </div>
-            {notifs.length > 0 && (
-              <div style={{ position: 'relative', cursor: 'pointer' }} title={`Tienes ${notifs.length} tareas pendientes`}>
-                <Bell size={20} color="var(--primary)" />
-                <span style={{ 
-                  position: 'absolute', top: '-5px', right: '-5px', 
-                  background: '#ef4444', color: 'white', borderRadius: '50%', 
-                  width: '18px', height: '18px', fontSize: '0.6rem',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900,
-                  boxShadow: '0 0 10px rgba(239, 68, 68, 0.5)'
-                }}>
-                  {notifs.length}
-                </span>
-              </div>
-            )}
-          </div>
-          <button onClick={onLogout} className="nav-link" style={{ width: '100%', border: 'none', background: 'transparent' }}>
-            <LogOut size={20} /> Cerrar Sesión
+  const menuItems = user?.role === 'Admin' ? [
+    { path: '/', label: 'Reporte', icon: <LayoutDashboard size={20} /> },
+    { path: '/segui', label: 'Seguimiento', icon: <Activity size={20} /> },
+    { path: '/catalogo', label: 'Catálogo Institucional', icon: <Database size={20} /> },
+    { path: '/usuarios', label: 'Usuarios', icon: <UsersIcon size={20} />, adminOnly: true },
+    { path: '/auditoria', label: 'Auditoría', icon: <ShieldCheck size={20} /> },
+    { path: '/documentacion', label: 'Ayuda / Manual', icon: <Book size={20} /> },
+  ] : [
+    { path: '/catalogo', label: 'MeGAs', icon: <Database size={20} /> },
+    { path: '/segui', label: 'Seguimiento', icon: <Activity size={20} /> },
+    { path: '/', label: 'Reporte', icon: <LayoutDashboard size={20} /> },
+    { path: '/auditoria', label: 'Auditoría', icon: <ShieldCheck size={20} /> },
+    { path: '/documentacion', label: 'Ayuda / Manual', icon: <Book size={20} /> },
+  ];
+
+  return (
+    <div className="layout" style={{ 
+      display: 'grid', 
+      gridTemplateColumns: isCollapsed ? '80px 1fr' : '280px 1fr',
+      transition: 'grid-template-columns 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+    }}>
+      <aside className="sidebar" style={{ 
+        width: '100%', 
+        overflow: 'hidden', 
+        display: 'flex', 
+        flexDirection: 'column',
+        padding: isCollapsed ? '1.5rem 0.75rem' : '1.5rem',
+        borderRight: '1px solid var(--border)'
+      }}>
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: isCollapsed ? 'center' : 'space-between',
+          marginBottom: '2.5rem' 
+        }}>
+          {!isCollapsed && <h2 style={{ fontSize: '1.25rem', color: '#1e293b', fontWeight: 800 }}>Menú</h2>}
+          <button 
+            onClick={toggleSidebar}
+            style={{ 
+              background: '#f1f5f9', border: 'none', padding: '0.5rem', 
+              borderRadius: '8px', cursor: 'pointer', color: '#64748b'
+            }}
+          >
+            {isCollapsed ? <Search size={18} /> : <Search size={18} style={{ transform: 'rotate(180deg)' }} />}
           </button>
         </div>
+        
+        <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          {menuItems.map((item) => (
+            <Link 
+              key={item.path}
+              to={item.path} 
+              className={`nav-link ${isActive(item.path) ? 'active' : ''}`}
+              style={{ 
+                justifyContent: isCollapsed ? 'center' : 'flex-start',
+                padding: isCollapsed ? '0.75rem' : '0.75rem 1rem'
+              }}
+              title={isCollapsed ? item.label : ''}
+            >
+              {item.icon}
+              {!isCollapsed && <span>{item.label}</span>}
+            </Link>
+          ))}
+        </nav>
+
+        <div style={{ 
+          marginTop: 'auto', 
+          borderTop: '1px solid #f1f5f9', 
+          paddingTop: '1.5rem',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '1rem'
+        }}>
+          {!isCollapsed && (
+            <div style={{ padding: '0 0.5rem' }}>
+              <p style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1e293b', marginBottom: '2px' }}>{user?.fullname}</p>
+              <p style={{ fontSize: '0.7rem', color: '#64748b', lineHeight: '1.2' }}>{user?.role === 'Admin' ? 'Administrador MeGAs' : user?.unidad}</p>
+              <p style={{ fontSize: '0.65rem', color: '#94a3b8', marginTop: '4px', fontStyle: 'italic' }}>{user?.cargo || 'Funcionario Público'}</p>
+            </div>
+          )}
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', position: 'relative' }}>
+             <button 
+               onClick={onLogout} 
+               className="nav-link" 
+               style={{ 
+                 width: '100%', border: 'none', background: 'transparent', 
+                 justifyContent: isCollapsed ? 'center' : 'flex-start',
+                 color: '#ef4444'
+               }}
+               title={isCollapsed ? 'Cerrar Sesión' : ''}
+             >
+               <LogOut size={20} /> 
+               {!isCollapsed && <span>Cerrar Sesión</span>}
+             </button>
+             
+             {(!isCollapsed && notifs.length > 0) && (
+               <div style={{ 
+                 position: 'absolute', top: '10px', right: '10px',
+                 background: '#ef4444', color: 'white', borderRadius: '50%', 
+                 width: '18px', height: '18px', fontSize: '0.6rem',
+                 display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900
+               }}>
+                 {notifs.length}
+               </div>
+             )}
+          </div>
+        </div>
       </aside>
-      <main className="content">
+      <main className="content" style={{ overflowY: 'auto' }}>
         {children}
       </main>
     </div>
