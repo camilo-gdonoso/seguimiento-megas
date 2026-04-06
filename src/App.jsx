@@ -43,7 +43,6 @@ const Layout = ({ children, user, onLogout }) => {
     { path: '/catalogo', label: 'MeGAs', icon: <Database size={20} /> },
     { path: '/segui', label: 'Seguimiento', icon: <Activity size={20} /> },
     { path: '/', label: 'Reporte', icon: <LayoutDashboard size={20} /> },
-    { path: '/auditoria', label: 'Auditoría', icon: <ShieldCheck size={20} /> },
     { path: '/documentacion', label: 'Ayuda / Manual', icon: <Book size={20} /> },
   ];
 
@@ -179,9 +178,9 @@ function App() {
           <Route path="/" element={<Dashboard user={user} />} />
           <Route path="/catalogo" element={<Catalog user={user} />} />
           <Route path="/segui" element={<Monitoring user={user} />} />
-          <Route path="/usuarios" element={<Users user={user} />} />
+          <Route path="/usuarios" element={user?.role === 'Admin' ? <Users user={user} /> : <Navigate to="/" replace />} />
           <Route path="/documentacion" element={<Documentation user={user} />} />
-          <Route path="/auditoria" element={<Audit user={user} />} />
+          <Route path="/auditoria" element={user?.role === 'Admin' ? <Audit user={user} /> : <Navigate to="/" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Layout>
