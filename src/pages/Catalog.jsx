@@ -541,8 +541,26 @@ const Catalog = ({ user }) => {
                       />
                     </div>
                   </td>
-                  <td colSpan="4" style={{ padding: '1rem' }}>
+                  <td colSpan="8" style={{ padding: '1rem' }}>
                     <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                      {activeTab === 'resultados' && (
+                         <select style={{ padding: '0.5rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.8rem' }} value={formData.eje_id || ''} onChange={e => setFormData({...formData, eje_id: e.target.value})}>
+                            <option value="">Vincular a Eje Estratégico...</option>
+                            {ejes.map(e => <option key={e.id} value={e.id}>{e.code}</option>)}
+                         </select>
+                      )}
+                      {activeTab === 'estrategias' && (
+                         <select style={{ padding: '0.5rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.8rem' }} value={formData.resultado_id || ''} onChange={e => setFormData({...formData, resultado_id: e.target.value})}>
+                            <option value="">Vincular a Resultado Padre...</option>
+                            {resultados.map(r => <option key={r.id} value={r.id}>{r.code}</option>)}
+                         </select>
+                      )}
+                      {activeTab === 'megas' && (
+                         <select style={{ padding: '0.5rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.8rem' }} value={formData.estrategia_id || ''} onChange={e => setFormData({...formData, estrategia_id: e.target.value})}>
+                            <option value="">Vincular a Estrategia...</option>
+                            {estrategias.map(es => <option key={es.id} value={es.id}>{es.code}</option>)}
+                         </select>
+                      )}
                       {activeTab === 'productos' && (
                          <select style={{ padding: '0.5rem', borderRadius: '6px', border: '1px solid #cbd5e1' }} value={formData.mega_id || ''} onChange={e => setFormData({...formData, mega_id: e.target.value})}>
                            <option value="">Vincular a MeGA...</option>
@@ -617,15 +635,22 @@ const Catalog = ({ user }) => {
                   )}
                   {activeTab === 'resultados' && (
                     <td style={{ padding: '1.25rem', fontSize: '0.85rem', color: '#64748b' }}>
-                      <span style={{ background: '#fef3c7', padding: '0.2rem 0.6rem', borderRadius: '4px', fontWeight: 700, color: '#92400e' }}>
-                         {ejes.find(e => Number(e.id) === Number(item.eje_id))?.code || '---'} {item.eje_id ? `(${item.eje_id})` : ''}
+                      <span style={{ background: '#fef3c7', padding: '0.3rem 0.75rem', borderRadius: '8px', fontWeight: 800, color: '#92400e', border: '1px solid #fde68a' }}>
+                         {ejes.find(e => Number(e.id) === Number(item.eje_id))?.code || 'S/V'}
                       </span>
                     </td>
                   )}
                   {activeTab === 'estrategias' && (
                     <td style={{ padding: '1.25rem', fontSize: '0.85rem', color: '#64748b' }}>
-                      <span style={{ background: '#e0f2fe', padding: '0.2rem 0.6rem', borderRadius: '4px', fontWeight: 700, color: '#0369a1' }}>
-                        {resultados.find(r => Number(r.id) === Number(item.resultado_id))?.code || '---'}
+                      <span style={{ background: '#e0f2fe', padding: '0.3rem 0.75rem', borderRadius: '8px', fontWeight: 800, color: '#0369a1', border: '1px solid #bae6fd' }}>
+                        {resultados.find(r => Number(r.id) === Number(item.resultado_id))?.code || 'S/V'}
+                      </span>
+                    </td>
+                  )}
+                  {activeTab === 'megas' && (
+                    <td style={{ padding: '1.25rem', fontSize: '0.85rem', color: '#64748b' }}>
+                      <span style={{ background: '#dcfce7', padding: '0.3rem 0.75rem', borderRadius: '8px', fontWeight: 800, color: '#166534', border: '1px solid #bbf7d0' }}>
+                        {estrategias.find(es => Number(es.id) === Number(item.estrategia_id))?.code || 'S/V'}
                       </span>
                     </td>
                   )}
