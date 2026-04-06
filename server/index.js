@@ -432,7 +432,7 @@ app.get('/api/seguimiento/formulario1', async (req, res) => {
             JOIN productos_intermedios prod ON prod.mega_id = m.id
             JOIN actividades act ON act.producto_id = prod.id
             JOIN tareas t ON t.actividad_id = act.id
-            ${role === 'Admin' ? '' : (role === 'Director' ? `WHERE m.unit_id = (SELECT unit_id FROM usuarios WHERE id = ${safeUserId})` : `WHERE t.user_id = ${safeUserId}`)}
+            ${role === 'Admin' ? '' : (role === 'Director' ? `WHERE m.unit_id = (SELECT unit_id FROM usuarios WHERE id = ${safeUserId}) OR t.director_id = ${safeUserId}` : `WHERE t.user_id = ${safeUserId}`)}
             ORDER BY m.id, prod.id, act.id, t.id
         `);
         res.json(result.rows);
@@ -541,21 +541,21 @@ app.get('/api/dashboard-stats', async (req, res) => {
         const safeUserId = parseInt(userId || 0);
 
         if (role === 'Tecnico') {
-            taskFilter = `WHERE t.user_id = ${safeUserId}`;
-            megaFilter = `WHERE m.unit_id IN (SELECT unit_id FROM usuarios WHERE id = ${safeUserId}) OR m.id IN (SELECT mega_id FROM productos_intermedios p JOIN actividades a ON a.producto_id = p.id JOIN tareas t ON t.actividad_id = a.id WHERE t.user_id = ${safeUserId})`;
+            taskFilter = `WHERE (t.user_id = ${safeUserId})`;
+            megaFilter = `WHERE (m.unit_id IN (SELECT unit_id FROM usuarios WHERE id = ${safeUserId}) OR m.id IN (SELECT mega_id FROM productos_intermedios p JOIN actividades a ON a.producto_id = p.id JOIN tareas t ON t.actividad_id = a.id WHERE t.user_id = ${safeUserId}))`;
         } else if (role === 'Director') {
-            // Un Director ve todo lo de su unidad asignada
+            // Un Director ve todo lo de su unidad asignada O si es el director_id
             const { rows: userRows } = await pool.query('SELECT unit_id FROM usuarios WHERE id = $1', [safeUserId]);
             const unitId = userRows[0]?.unit_id;
             
-            taskFilter = `WHERE t.actividad_id IN (
+            taskFilter = `WHERE (t.actividad_id IN (
                 SELECT a.id FROM actividades a 
                 JOIN productos_intermedios p ON a.producto_id = p.id 
                 JOIN megas m ON p.mega_id = m.id 
                 WHERE m.unit_id = ${unitId || 0}
-            ) OR t.director_id = ${safeUserId}`;
+            ) OR t.director_id = ${safeUserId})`;
 
-            megaFilter = `WHERE m.unit_id = ${unitId || 0} OR m.id IN (SELECT mega_id FROM productos_intermedios p JOIN actividades a ON a.producto_id = p.id JOIN tareas t ON t.actividad_id = a.id WHERE t.director_id = ${safeUserId})`;
+            megaFilter = `WHERE (m.unit_id = ${unitId || 0} OR m.id IN (SELECT mega_id FROM productos_intermedios p JOIN actividades a ON a.producto_id = p.id JOIN tareas t ON t.actividad_id = a.id WHERE t.director_id = ${safeUserId}))`;
         }
 
         const megasProgress = await pool.query(`SELECT m.code, m.name, m.avance_fisico as progress FROM megas m ${megaFilter} ORDER BY m.avance_fisico DESC LIMIT 8`);
