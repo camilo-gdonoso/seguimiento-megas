@@ -52,7 +52,7 @@ const Dashboard = ({ user }) => {
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
       <div style={{ textAlign: 'center' }}>
         <div className="animate-pulse" style={{ width: '60px', height: '60px', borderRadius: '50%', background: '#3b82f6', margin: '0 auto 1rem' }} />
-        <p style={{ color: '#64748b', fontWeight: 600 }}>Cargando Panel de Control...</p>
+        <p style={{ color: '#64748b', fontWeight: 600 }}>Generando Reporte de Cumplimiento...</p>
       </div>
     </div>
   );
@@ -62,7 +62,7 @@ const Dashboard = ({ user }) => {
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
       <header style={{ marginBottom: '2.5rem' }}>
-        <h1 className="hero-title">Panel de Control Estratégico</h1>
+        <h1 className="hero-title">Reporte de Cumplimiento Estratégico</h1>
         <p style={{ color: '#64748b' }}>Seguimiento en tiempo real de los Resultados MeGAs 2026-2030</p>
       </header>
 

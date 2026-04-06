@@ -83,7 +83,9 @@ const Monitoring = ({ user }) => {
 
   const fetchData = async () => {
     try {
-      const resp = await axios.get(`${API_URL}/seguimiento/formulario1`);
+      const resp = await axios.get(`${API_URL}/seguimiento/formulario1`, {
+        params: { userId: user?.id, role: user?.role }
+      });
       setData(resp.data || []);
       
       const mResp = await axios.get(`${API_URL}/megas`);
@@ -189,14 +191,6 @@ const Monitoring = ({ user }) => {
   };
 
   const filteredData = (data || []).filter(row => {
-    // Role-based visibility:
-    // If Admin, see everything. If Técnico/Director, only see assigned tasks.
-    const isOwner = user?.role === 'Admin' || 
-                   row.user_id === user?.id || 
-                   row.director_id === user?.id;
-    
-    if (!isOwner) return false;
-
     const matchesSearch = (row.mega_name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
                          row.producto_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          row.name?.toLowerCase().includes(searchTerm.toLowerCase()));

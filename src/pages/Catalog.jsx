@@ -350,6 +350,7 @@ const Catalog = ({ user }) => {
         await axios.post(`${API_URL}/${resource}`, dataToSave);
       }
       setIsModalOpen(false);
+      setFormData({}); // Clear form for quick entry flow
       fetchData();
       fetchSupportData();
       setAlertDialog({ isOpen: true, title: 'Éxito', message: 'Registro guardado correctamente.', type: 'success' });
@@ -405,8 +406,8 @@ const Catalog = ({ user }) => {
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
       <header style={{ marginBottom: '2.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
         <div>
-          <h1 className="hero-title">Configuración Estratégica</h1>
-          <p style={{ color: '#64748b' }}>Módulo 1: Parametrización y Catálogo Institucional</p>
+          <h1 className="hero-title">MeGAs</h1>
+          <p style={{ color: '#64748b' }}>Parametrización Inicial</p>
         </div>
         <div style={{ display: 'flex', gap: '0.75rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0', border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden', background: 'white' }}>
@@ -521,35 +522,104 @@ const Catalog = ({ user }) => {
         <div className="glass-card" style={{ overflow: 'hidden' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
-              <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                <th style={{ padding: '1.25rem', fontSize: '0.85rem', color: '#64748b', fontWeight: 700 }}>Descripción / Nombre</th>
-                {activeTab === 'resultados' && <th style={{ padding: '1.25rem', fontSize: '0.85rem', color: '#64748b', fontWeight: 700 }}>Eje</th>}
-                {activeTab === 'estrategias' && <th style={{ padding: '1.25rem', fontSize: '0.85rem', color: '#64748b', fontWeight: 700 }}>Resultado</th>}
-                {activeTab === 'megas' && <th style={{ padding: '1.25rem', fontSize: '0.85rem', color: '#64748b', fontWeight: 700 }}>Estrategia</th>}
-                {activeTab === 'productos' && <th style={{ padding: '1.25rem', fontSize: '0.85rem', color: '#64748b', fontWeight: 700 }}>MeGA</th>}
-                {activeTab === 'actividades' && <th style={{ padding: '1.25rem', fontSize: '0.85rem', color: '#64748b', fontWeight: 700 }}>Producto</th>}
-                {activeTab === 'tareas' && <th style={{ padding: '1.25rem', fontSize: '0.85rem', color: '#64748b', fontWeight: 700 }}>Actividad</th>}
-                {activeTab === 'megas' && <th style={{ padding: '1.25rem', fontSize: '0.85rem', color: '#64748b', fontWeight: 700 }}>Productos Intermedios</th>}
-                {activeTab === 'productos' && <th style={{ padding: '1.25rem', fontSize: '0.85rem', color: '#64748b', fontWeight: 700 }}>Peso %</th>}
-                {activeTab === 'tareas' && <th style={{ padding: '1.25rem', fontSize: '0.85rem', color: '#64748b', fontWeight: 700 }}>Peso %</th>}
-                {isAdmin && <th style={{ padding: '1.25rem', fontSize: '0.85rem', color: '#64748b', fontWeight: 700, textAlign: 'right' }}>Acciones</th>}
+              {/* Quick Entry Row */}
+              {isAdmin && activeTab !== 'tareas' && (
+                <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
+                  <td style={{ padding: '1rem' }}>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <input 
+                        placeholder="Código..." 
+                        style={{ width: '120px', padding: '0.5rem', borderRadius: '6px', border: '1px solid #cbd5e1' }}
+                        value={formData.code || ''}
+                        onChange={e => setFormData({...formData, code: e.target.value})}
+                      />
+                      <input 
+                        placeholder={`Nuevo(a) ${activeTab.slice(0,-1)}...`} 
+                        style={{ flex: 1, padding: '0.5rem', borderRadius: '6px', border: '1px solid #cbd5e1' }}
+                        value={formData.name || formData.description || ''}
+                        onChange={e => setFormData({...formData, [activeTab === 'resultados' || activeTab === 'ejes' || activeTab === 'estrategias' ? 'description' : 'name']: e.target.value})}
+                      />
+                    </div>
+                  </td>
+                  <td colSpan="4" style={{ padding: '1rem' }}>
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                      {activeTab === 'productos' && (
+                         <select style={{ padding: '0.5rem', borderRadius: '6px', border: '1px solid #cbd5e1' }} value={formData.mega_id || ''} onChange={e => setFormData({...formData, mega_id: e.target.value})}>
+                           <option value="">Vincular a MeGA...</option>
+                           {megas.map(m => <option key={m.id} value={m.id}>{m.code}</option>)}
+                         </select>
+                      )}
+                      {activeTab === 'actividades' && (
+                         <select style={{ padding: '0.5rem', borderRadius: '6px', border: '1px solid #cbd5e1' }} value={formData.producto_id || ''} onChange={e => setFormData({...formData, producto_id: e.target.value})}>
+                           <option value="">Vincular a Producto...</option>
+                           {productos.map(p => <option key={p.id} value={p.id}>{p.name?.substring(0,30)}...</option>)}
+                         </select>
+                      )}
+                      <button 
+                        onClick={handleSave} 
+                        style={{ padding: '0.5rem 1rem', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 700, cursor: 'pointer' }}
+                      >
+                         + Registrar
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              )}
+              <tr style={{ background: '#f1f5f9', borderBottom: '1px solid #e2e8f0' }}>
+                <th style={{ padding: '1.25rem', fontSize: '0.75rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase' }}>
+                  {activeTab === 'tareas' ? 'RESULTADO MeGA / PRODUCTO / ACTIVIDAD' : 'CÓDIGO / DESCRIPCIÓN'}
+                </th>
+                {activeTab === 'resultados' && <th style={{ padding: '1.25rem', fontSize: '0.75rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase' }}>EJE ESTRATÉGICO</th>}
+                {activeTab === 'estrategias' && <th style={{ padding: '1.25rem', fontSize: '0.75rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase' }}>RESULTADO PADRE</th>}
+                {activeTab === 'megas' && <th style={{ padding: '1.25rem', fontSize: '0.75rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase' }}>ESTRATEGIA VINCULADA</th>}
+                {activeTab === 'productos' && <th style={{ padding: '1.25rem', fontSize: '0.75rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase' }}>MeGA ASOCIADO</th>}
+                {activeTab === 'actividades' && <th style={{ padding: '1.25rem', fontSize: '0.75rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase' }}>PRODUCTO INTERMEDIO</th>}
+                {activeTab === 'tareas' && (
+                  <>
+                    <th style={{ padding: '1.25rem', fontSize: '0.75rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase' }}>TAREA DE CUMPLIMIENTO</th>
+                    <th style={{ padding: '1.25rem', fontSize: '0.75rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase' }}>PESO % (PRODUCTO)</th>
+                    <th style={{ padding: '1.25rem', fontSize: '0.75rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase' }}>CRONOGRAMA (INICIO - FIN)</th>
+                    <th style={{ padding: '1.25rem', fontSize: '0.75rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase' }}>RESPONSABLES (CARGO)</th>
+                  </>
+                )}
+                {activeTab === 'megas' && <th style={{ padding: '1.25rem', fontSize: '0.75rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase' }}>AVANCE FÍSICO</th>}
+                {activeTab === 'productos' && <th style={{ padding: '1.25rem', fontSize: '0.75rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase' }}>PESO % MeGA</th>}
+                {isAdmin && <th style={{ padding: '1.25rem', fontSize: '0.75rem', color: '#475569', fontWeight: 800, textAlign: 'right', textTransform: 'uppercase' }}>ACCIONES</th>}
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan="8" style={{ padding: '3rem', textAlign: 'center', color: '#64748b' }}>Cargando catálogo...</td></tr>
+                <tr><td colSpan="12" style={{ padding: '3rem', textAlign: 'center', color: '#64748b' }}>Cargando matriz institucional...</td></tr>
               ) : data.length === 0 ? (
-                <tr><td colSpan="8" style={{ padding: '3rem', textAlign: 'center', color: '#64748b' }}>No hay registros cargados</td></tr>
+                <tr><td colSpan="12" style={{ padding: '3rem', textAlign: 'center', color: '#64748b' }}>No hay registros cargados</td></tr>
               ) : filteredData.length === 0 ? (
-                <tr><td colSpan="8" style={{ padding: '3rem', textAlign: 'center', color: '#64748b' }}>No se encontraron coincidencias para '{searchTerm}'</td></tr>
+                <tr><td colSpan="12" style={{ padding: '3rem', textAlign: 'center', color: '#64748b' }}>No se encontraron coincidencias</td></tr>
               ) : filteredData.map(item => (
-                <tr key={item.id} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.2s' }}>
-                  <td style={{ padding: '1.25rem', fontSize: '0.9rem', fontWeight: 600 }}>
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      {item.code && <span style={{ fontSize: '0.7rem', color: 'var(--primary)', fontWeight: 800, marginBottom: '2px' }}>{item.code}</span>}
-                      {item.description || item.name}
-                      {activeTab === 'megas' && <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 400 }}>Unidad: {item.unit_name || 'N/A'}</div>}
-                      {activeTab === 'tareas' && <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 400 }}>Resp: {item.responsable_nombre || 'N/A'}</div>}
+                <tr key={item.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                  <td style={{ padding: '1.25rem', fontSize: '0.85rem' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                      {activeTab === 'tareas' ? (
+                        <>
+                          <div style={{ display: 'flex', gap: '0.4rem', borderLeft: '3px solid #3b82f6', paddingLeft: '0.5rem' }}>
+                             <span style={{ fontWeight: 800, color: '#2563eb', fontSize: '0.7rem' }}>MeGA:</span> 
+                             <span style={{ fontWeight: 600, color: '#475569' }}>{item.mega_code}</span>
+                          </div>
+                          <div style={{ display: 'flex', gap: '0.4rem', borderLeft: '3px solid #10b981', paddingLeft: '0.5rem' }}>
+                             <span style={{ fontWeight: 800, color: '#059669', fontSize: '0.7rem' }}>PROD:</span> 
+                             <span style={{ color: '#64748b' }}>{item.producto_name?.substring(0,40)}...</span>
+                          </div>
+                          <div style={{ display: 'flex', gap: '0.4rem', borderLeft: '3px solid #f59e0b', paddingLeft: '0.5rem' }}>
+                             <span style={{ fontWeight: 800, color: '#d97706', fontSize: '0.7rem' }}>ACT:</span> 
+                             <span style={{ color: '#64748b' }}>{item.actividad_name}</span>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          {item.code && <span style={{ fontSize: '0.7rem', color: '#3b82f6', fontWeight: 900 }}>{item.code}</span>}
+                          <span style={{ fontWeight: 600, color: '#1e293b' }}>{item.description || item.name}</span>
+                          {activeTab === 'megas' && <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Unidad: {item.unit_name || 'N/A'}</div>}
+                        </>
+                      )}
                     </div>
                   </td>
                   {activeTab === 'resultados' && (
@@ -577,9 +647,29 @@ const Catalog = ({ user }) => {
                     </td>
                   )}
                   {activeTab === 'tareas' && (
-                    <td style={{ padding: '1.25rem', fontSize: '0.85rem', color: '#64748b' }}>
-                       {item.actividad_name || '---'}
-                    </td>
+                    <>
+                      <td style={{ padding: '1.25rem', fontSize: '0.9rem', color: '#1e293b', fontWeight: 700, borderLeft: '1px solid #f1f5f9' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                          <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 800 }}>{item.code}</span>
+                          {item.name}
+                        </div>
+                      </td>
+                      <td style={{ padding: '1.25rem', fontSize: '0.9rem', fontWeight: 900, color: '#2563eb' }}>
+                        {parseFloat(item.ponderacion_producto || 0).toFixed(1)}%
+                      </td>
+                      <td style={{ padding: '1.25rem', fontSize: '0.8rem', color: '#475569', fontWeight: 600 }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                          <span style={{ color: '#94a3b8', fontSize: '0.65rem' }}>INICIO: {item.fecha_inicio ? new Date(item.fecha_inicio).toLocaleDateString() : '---'}</span>
+                          <span style={{ color: '#94a3b8', fontSize: '0.65rem' }}>FIN: {item.fecha_fin ? new Date(item.fecha_fin).toLocaleDateString() : '---'}</span>
+                        </div>
+                      </td>
+                      <td style={{ padding: '1.25rem', fontSize: '0.85rem', color: '#475569', fontWeight: 700 }}>
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                           <span>{item.responsable_nombre || '---'}</span>
+                           <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 500 }}>{item.responsable_cargo || '---'}</span>
+                        </div>
+                      </td>
+                    </>
                   )}
                   {activeTab === 'megas' && (
                     <td style={{ padding: '1.25rem' }}>
@@ -613,11 +703,6 @@ const Catalog = ({ user }) => {
                       {parseFloat(item.ponderacion_total || 0).toFixed(1)}%
                     </td>
                   )}
-                  {activeTab === 'tareas' && (
-                    <td style={{ padding: '1.25rem', fontSize: '0.85rem', fontWeight: 700, color: '#475569' }}>
-                      {parseFloat(item.ponderacion_producto || 0).toFixed(1)}%
-                    </td>
-                  )}
                   {isAdmin && activeTab !== 'organigrama' && (
                     <td style={{ padding: '1.25rem', textAlign: 'right' }}>
                       <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
@@ -642,332 +727,185 @@ const Catalog = ({ user }) => {
           </table>
         </div>
       )}
+
       {/* Modal Overlay */}
       {isModalOpen && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(5px)' }}>
-          <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="glass-card" style={{ width: '550px', padding: '2.5rem', border: '1px solid rgba(255,255,255,0.2)' }}>
-            <h2 style={{ marginBottom: '1.5rem', fontSize: '1.5rem', fontWeight: 800 }}>{editingId ? 'Editar' : 'Nuevo'} {activeTab.toUpperCase()}</h2>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '2rem' }}>
+          <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="glass-card" style={{ width: '850px', maxHeight: '90vh', overflowY: 'auto', padding: '3rem', background: 'white', borderRadius: '32px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2.5rem', borderBottom: '2px solid #f1f5f9', paddingBottom: '1.25rem' }}>
+               <div style={{ background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)', color: 'white', padding: '0.8rem', borderRadius: '16px' }}>
+                  <FileText size={28} />
+               </div>
+               <div>
+                 <h2 style={{ fontSize: '1.75rem', fontWeight: 900, color: '#0f172a', margin: 0, lineHeight: 1 }}>{activeTab === 'tareas' ? 'Ficha de Tareas' : 'Nuevo Registro'}</h2>
+                 <p style={{ color: '#64748b', fontSize: '0.85rem', marginTop: '0.3rem', fontWeight: 500 }}>Parametrización detallada de cumplimiento {activeTab === 'tareas' ? 'operativo' : 'estratégico'}</p>
+               </div>
+            </div>
             
             {error && (
-              <div style={{ padding: '0.75rem', background: '#fee2e2', color: '#991b1b', borderRadius: '8px', marginBottom: '1.5rem', fontSize: '0.85rem', fontWeight: 600, border: '1px solid #fecaca' }}>
-                ⚠️ {error}
+              <div style={{ padding: '0.75rem', background: '#fee2e2', color: '#991b1b', borderRadius: '12px', marginBottom: '1.5rem', fontSize: '0.85rem', fontWeight: 700, border: '1px solid #fecaca', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Shield size={16} /> {error}
               </div>
             )}
 
             <form onSubmit={handleSave}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.25rem' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.5rem', fontWeight: 700, color: '#475569' }}>Código / Identificador</label>
-                  <input 
-                    type="text" required minLength="2"
-                    placeholder="Ej: Eje 1, R6, E46, M1, ACT-01, T-55..."
-                    style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0', outline: 'none' }}
-                    value={formData.code || ''} 
-                    onChange={e => setFormData({...formData, code: e.target.value})} 
-                  />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.5rem', fontWeight: 700, color: '#475569' }}>Descripción / Nombre Detallado</label>
-                  <textarea 
-                    required rows="3"
-                    style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0', outline: 'none', resize: 'none' }}
-                    value={formData.description || formData.name || ''} 
-                    onChange={e => setFormData({...formData, [['megas', 'productos', 'actividades', 'tareas'].includes(activeTab) ? 'name' : 'description']: e.target.value})}
-                  ></textarea>
-                </div>
-
-                {activeTab === 'resultados' && (
-                   <div>
-                     <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.5rem', fontWeight: 700, color: '#475569' }}>Vincular a Eje</label>
-                     <select required style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0' }} value={formData.eje_id || ''} onChange={e => setFormData({...formData, eje_id: e.target.value})}>
-                       <option value="">Seleccionar Eje...</option>
-                       {ejes.map(e => <option key={e.id} value={e.id}>{e.code} - {e.description}</option>)}
-                     </select>
-                   </div>
-                )}
-
-                {activeTab === 'estrategias' && (
-                   <div>
-                     <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.5rem', fontWeight: 700, color: '#475569' }}>Vincular a Resultado</label>
-                     <select required style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0' }} value={formData.resultado_id || ''} onChange={e => setFormData({...formData, resultado_id: e.target.value})}>
-                       <option value="">Seleccionar Resultado...</option>
-                       {resultados.map(r => <option key={r.id} value={r.id}>{r.code} - {r.description}</option>)}
-                     </select>
-                   </div>
-                )}
-
-                {activeTab === 'megas' && (
-                   <>
-                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                       <div>
-                         <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.5rem', fontWeight: 700, color: '#475569' }}>Estrategia</label>
-                         <select required style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0' }} value={formData.estrategia_id || ''} onChange={e => setFormData({...formData, estrategia_id: e.target.value})}>
-                           <option value="">Estrategia...</option>
-                           {estrategias.map(s => <option key={s.id} value={s.id}>{s.code}</option>)}
-                         </select>
-                       </div>
-                       <div>
-                         <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.5rem', fontWeight: 700, color: '#475569' }}>Unidad Responsable</label>
-                         <select required style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0' }} value={formData.unit_id || ''} onChange={e => setFormData({...formData, unit_id: e.target.value})}>
-                           <option value="">Unidad...</option>
-                           {units.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-                         </select>
-                       </div>
-                     </div>
-                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                       <div>
-                         <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.5rem', fontWeight: 700, color: '#475569' }}>Fecha de Inicio (MeGA)</label>
-                         <input type="date" required style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0', outline: 'none' }} value={formData.fecha_inicio ? formData.fecha_inicio.split('T')[0] : ''} onChange={e => setFormData({...formData, fecha_inicio: e.target.value})} />
-                       </div>
-                       <div>
-                         <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.5rem', fontWeight: 700, color: '#475569' }}>Fecha de Fin (MeGA)</label>
-                         <input type="date" required style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0', outline: 'none' }} value={formData.fecha_fin ? formData.fecha_fin.split('T')[0] : ''} onChange={e => setFormData({...formData, fecha_fin: e.target.value})} />
-                       </div>
-                     </div>
-                   </>
-                )}
-
-                {activeTab === 'productos' && (
-                   <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '1rem' }}>
-                     <div>
-                       <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.5rem', fontWeight: 700, color: '#475569' }}>MeGA (Metas 2030)</label>
-                       <select required style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0' }} value={formData.mega_id || ''} onChange={e => setFormData({...formData, mega_id: e.target.value})}>
-                         <option value="">Seleccionar MeGA...</option>
-                         {megas.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-                       </select>
-                     </div>
-                     <div>
-                       <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.5rem', fontWeight: 700, color: '#475569' }}>Peso %</label>
-                       <input 
-                         type="number" step="0.1" required 
-                         style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0', outline: 'none' }}
-                         value={formData.ponderacion_total || ''} 
-                         onChange={e => setFormData({...formData, ponderacion_total: e.target.value})} 
-                       />
-                     </div>
-                   </div>
-                )}
-
-                {activeTab === 'actividades' && (
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.5rem', fontWeight: 700, color: '#475569' }}>Producto Intermedio</label>
-                    <select required style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0' }} value={formData.producto_id || ''} onChange={e => setFormData({...formData, producto_id: e.target.value})}>
-                      <option value="">Seleccionar Producto...</option>
-                      {productos.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                    </select>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
+                {activeTab !== 'tareas' ? (
+                  <div style={{ display: 'grid', gridTemplateColumns: '150px 1fr', gap: '1.5rem' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, marginBottom: '0.6rem', color: '#475569' }}>Código / ID</label>
+                      <input required style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '1px solid #cbd5e1', background: '#f8fafc', fontWeight: 700 }} value={formData.code || ''} onChange={e => setFormData({...formData, code: e.target.value})} />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, marginBottom: '0.6rem', color: '#475569' }}>Descripción Detallada</label>
+                      <textarea required rows="3" style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '1px solid #cbd5e1', background: '#f8fafc', resize: 'none' }} value={formData.description || formData.name || ''} onChange={e => setFormData({...formData, [activeTab === 'resultados' || activeTab === 'ejes' || activeTab === 'estrategias' ? 'description' : 'name']: e.target.value})} />
+                    </div>
                   </div>
-                )}
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '150px 1fr', gap: '1.5rem' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, marginBottom: '0.6rem', color: '#475569' }}>Código / ID</label>
+                        <input required placeholder="T-01" style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '2px solid #3b82f6', background: '#eff6ff', fontWeight: 900, fontSize: '1.1rem', color: '#1e40af' }} value={formData.code || ''} onChange={e => setFormData({...formData, code: e.target.value})} />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, marginBottom: '0.6rem', color: '#475569' }}>Descripción de la Tarea</label>
+                        <input required style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '1px solid #cbd5e1', background: '#f8fafc', fontWeight: 600 }} value={formData.name || ''} onChange={e => setFormData({...formData, name: e.target.value})} />
+                      </div>
+                    </div>
 
-                {activeTab === 'tareas' && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
-                    <div style={{ gridColumn: 'span 2' }}>
-                      <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.5rem', fontWeight: 700, color: '#475569' }}>Actividad Padre</label>
-                      <select required style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0' }} value={formData.actividad_id || ''} onChange={e => setFormData({...formData, actividad_id: e.target.value})}>
-                        <option value="">Seleccionar Actividad...</option>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, marginBottom: '0.6rem', color: '#475569' }}>Actividad Padre vinculada</label>
+                      <select required style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '1px solid #cbd5e1', background: '#f8fafc', fontWeight: 600 }} value={formData.actividad_id || ''} onChange={e => setFormData({...formData, actividad_id: e.target.value})}>
+                        <option value="">Seleccionar de la lista de actividades...</option>
                         {actividades.map(a => (
-                          <option key={a.id} value={a.id}>
-                            MeGA: {a.mega_name?.substring(0,30)}... / Prod: {a.producto_name?.substring(0,30)}... / Act: {a.name}
-                          </option>
+                          <option key={a.id} value={a.id}>MeGA: {a.mega_code} / Prod: {a.producto_name?.substring(0,40)}... / Act: {a.name}</option>
                         ))}
                       </select>
                     </div>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.5rem', fontWeight: 700, color: '#475569' }}>Peso % (0-100)</label>
-                      <input 
-                        type="number" step="0.1" min="0.1" max="100" required 
-                        placeholder="Ej. 20.5"
-                        style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0', outline: 'none' }}
-                        value={formData.ponderacion_producto || ''} 
-                        onChange={e => {
-                          let val = parseFloat(e.target.value);
-                          if (val > 100) val = 100;
-                          const nd = {...formData, ponderacion_producto: val || 0};
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1.5rem' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, marginBottom: '0.6rem', color: '#475569' }}>Peso % (0-100)</label>
+                        <input type="number" step="0.1" required style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '1px solid #cbd5e1', fontWeight: 900, color: '#2563eb' }} value={formData.ponderacion_producto || ''} onChange={e => {
+                          const val = parseFloat(e.target.value) || 0;
+                          const nd = {...formData, ponderacion_producto: val};
                           if (formData.planograma) generatePlanograma(nd); else setFormData(nd);
-                        }} 
-                      />
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.5rem', fontWeight: 700, color: '#475569' }}>Fecha Inicio</label>
-                        <input 
-                          type="date" required
-                          style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0', outline: 'none' }}
-                          value={formData.fecha_inicio ? formData.fecha_inicio.split('T')[0] : ''} 
-                          onChange={e => {
-                            const nd = {...formData, fecha_inicio: e.target.value};
-                            if (formData.planograma) generatePlanograma(nd); else setFormData(nd);
-                          }} 
-                        />
+                        }} />
                       </div>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.5rem', fontWeight: 700, color: '#475569' }}>Fecha Fin</label>
-                        <input 
-                          type="date" required
-                          style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0', outline: 'none' }}
-                          value={formData.fecha_fin ? formData.fecha_fin.split('T')[0] : ''} 
-                          onChange={e => {
-                            const nd = {...formData, fecha_fin: e.target.value};
-                            if (formData.planograma) generatePlanograma(nd); else setFormData(nd);
-                          }} 
-                        />
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, marginBottom: '0.6rem', color: '#475569' }}>Fecha Inicio</label>
+                          <input type="date" required style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '1px solid #cbd5e1' }} value={formData.fecha_inicio ? formData.fecha_inicio.split('T')[0] : ''} onChange={e => {
+                             const nd = {...formData, fecha_inicio: e.target.value};
+                             if (formData.planograma) generatePlanograma(nd); else setFormData(nd);
+                          }} />
+                        </div>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, marginBottom: '0.6rem', color: '#475569' }}>Fecha Fin</label>
+                          <input type="date" required style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '1px solid #cbd5e1' }} value={formData.fecha_fin ? formData.fecha_fin.split('T')[0] : ''} onChange={e => {
+                             const nd = {...formData, fecha_fin: e.target.value};
+                             if (formData.planograma) generatePlanograma(nd); else setFormData(nd);
+                          }} />
+                        </div>
                       </div>
                     </div>
-                    <div style={{ gridColumn: 'span 2', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '1.5rem' }}>
                       <div>
-                        <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.5rem', fontWeight: 700, color: '#475569' }}>Tipo de Avance</label>
-                        <select 
-                          style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}
-                          value={formData.tipo_avance || 'Semanal'} 
-                          onChange={e => {
-                            const nd = {...formData, tipo_avance: e.target.value};
-                            if (formData.planograma) generatePlanograma(nd); else setFormData(nd);
-                          }}
-                        >
-                          <option value="Semanal">Semanal</option>
+                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, marginBottom: '0.6rem', color: '#475569' }}>Tipo de Avance</label>
+                        <select style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '1px solid #cbd5e1' }} value={formData.tipo_avance || 'Semanal'} onChange={e => {
+                          const nd = {...formData, tipo_avance: e.target.value};
+                          if (formData.planograma) generatePlanograma(nd); else setFormData(nd);
+                        }}>
+                          <option value="Semanal">Semanal (Recomendado)</option>
                           <option value="Diario">Diario</option>
                         </select>
                       </div>
                       <div>
-                        <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.5rem', fontWeight: 700, color: '#475569' }}>Medio de Verificación</label>
-                        <input 
-                          type="text" 
-                          style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0', outline: 'none' }}
-                          value={formData.medio_verificacion || ''} 
-                          onChange={e => setFormData({...formData, medio_verificacion: e.target.value})} 
-                        />
+                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, marginBottom: '0.6rem', color: '#475569' }}>Medio de Verificación</label>
+                        <input placeholder="Ej: Link Google Drive, Informe..." style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '1px solid #cbd5e1' }} value={formData.medio_verificacion || ''} onChange={e => setFormData({...formData, medio_verificacion: e.target.value})} />
                       </div>
                     </div>
 
-                    <div style={{ gridColumn: 'span 2', display: 'flex', justifyContent: 'flex-start', marginTop: '0.5rem' }}>
-                      <button type="button" onClick={() => generatePlanograma()} style={{ padding: '0.6rem 1.25rem', borderRadius: '8px', background: '#3b82f6', color: 'white', border: 'none', fontWeight: 700, fontSize: '0.85rem', boxShadow: '0 4px 6px -1px rgba(59, 130, 246, 0.2)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                         <LayoutGrid size={16} /> Auto-Calcular Cuadrícula de Planificación
-                      </button>
+                    <div style={{ background: '#f8fafc', padding: '1.5rem', borderRadius: '24px', border: '1px solid #e2e8f0' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                        <h4 style={{ fontSize: '1rem', fontWeight: 800, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <LayoutGrid size={20} color="#3b82f6" /> Cronograma de Planificación
+                        </h4>
+                        <button type="button" onClick={() => generatePlanograma()} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#3b82f6', color: 'white', border: 'none', padding: '0.6rem 1rem', borderRadius: '12px', fontWeight: 800, cursor: 'pointer', fontSize: '0.75rem' }}>
+                          Auto-Calcular
+                        </button>
+                      </div>
+                      
+                      {formData.planograma && (
+                         <div style={{ display: 'flex', gap: '0.75rem', overflowX: 'auto', padding: '0.5rem 0' }}>
+                            {formData.planograma.map((p, idx) => (
+                              <div key={idx} style={{ minWidth: '75px', textAlign: 'center' }}>
+                                <div style={{ fontSize: '0.6rem', fontWeight: 900, color: '#94a3b8', marginBottom: '0.4rem', textTransform: 'uppercase' }}>{formData.tipo_avance === 'Diario' ? 'D' : 'S'}{p.periodo}</div>
+                                <input style={{ width: '100%', padding: '0.6rem', borderRadius: '10px', border: '2px solid #e2e8f0', textAlign: 'center', fontWeight: 800, fontSize: '0.9rem' }} value={p.valor} onChange={e => {
+                                  const newP = [...formData.planograma];
+                                  newP[idx].valor = parseFloat(e.target.value) || 0;
+                                  setFormData({...formData, planograma: newP});
+                                }} />
+                              </div>
+                            ))}
+                         </div>
+                      )}
                     </div>
 
-                    {formData.planograma && formData.planograma.length > 0 && (
-                      <div style={{ gridColumn: 'span 2', background: '#f8fafc', padding: '1.25rem', borderRadius: '12px', border: '1px solid #e2e8f0', marginTop: '0.5rem' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                          <h4 style={{ fontSize: '0.95rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>Distribución Planificada ({formData.tipo_avance || 'Semanal'})</h4>
-                          <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 700, background: 'white', padding: '0.3rem 0.6rem', borderRadius: '6px', border: '1px solid #cbd5e1' }}>
-                            Peso Tarea: {formData.ponderacion_producto}% | Suma Asignada: <span style={{ color: Math.abs(formData.planograma.reduce((acc, p) => acc + parseFloat(p.valor || 0), 0) - parseFloat(formData.ponderacion_producto)) > 0.05 ? '#ef4444' : '#10b981' }}>{formData.planograma.reduce((acc, p) => acc + parseFloat(p.valor || 0), 0).toFixed(2)}%</span>
-                          </span>
-                        </div>
-                        <div style={{ display: 'flex', gap: '0.5rem', overflowX: 'auto', paddingBottom: '0.5rem' }}>
-                          {formData.planograma.map((p, idx) => (
-                            <div key={idx} style={{ minWidth: '70px', display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-                              <span style={{ fontSize: '0.7rem', color: '#475569', fontWeight: 700, textAlign: 'center' }}>
-                                {formData.tipo_avance === 'Diario' ? 'Día ' : 'Sem '}{p.periodo}
-                              </span>
-                              <input 
-                                type="number" step="0.1"
-                                value={p.valor}
-                                onChange={e => {
-                                  const newPlan = [...formData.planograma];
-                                  newPlan[idx].valor = parseFloat(e.target.value) || 0;
-                                  setFormData({ ...formData, planograma: newPlan });
-                                }}
-                                style={{ width: '100%', padding: '0.5rem', borderRadius: '6px', border: '1px solid #cbd5e1', textAlign: 'center', outline: 'none', fontWeight: 800, color: '#0f172a' }}
-                              />
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    <div style={{ gridColumn: 'span 2', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
                       <div>
-                        <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.5rem', fontWeight: 700, color: '#475569' }}>Funcionario Asignado</label>
-                        <select 
-                          required 
-                          style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0' }} 
-                          value={formData.user_id || ''} 
-                          onChange={e => setFormData({...formData, user_id: e.target.value})}
-                        >
-                          <option value="">Seleccionar Funcionario...</option>
-                          {availableTechnicians.map(u => <option key={u.id} value={u.id}>{u.fullname} ({u.role})</option>)}
+                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, marginBottom: '0.6rem', color: '#475569' }}>Funcionario (Ejecución)</label>
+                        <select required style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '1px solid #cbd5e1' }} value={formData.user_id || ''} onChange={e => setFormData({...formData, user_id: e.target.value})}>
+                          <option value="">Buscar funcionario asignado...</option>
+                          {users.map(u => <option key={u.id} value={u.id}>{u.fullname}</option>)}
                         </select>
                       </div>
                       <div>
-                        <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.5rem', fontWeight: 700, color: '#475569' }}>Director Asignado</label>
-                        <select 
-                          required 
-                          style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0' }} 
-                          value={formData.director_id || ''} 
-                          onChange={e => {
-                            const val = e.target.value;
-                            const selected = availableDirectors.find(u => u.id == val);
-                            if (selected) {
-                              setFormData({
-                                ...formData, 
-                                director_id: val,
-                                responsable_nombre: selected.fullname,
-                                responsable_cargo: selected.role
-                              });
-                            } else {
-                              setFormData({ ...formData, director_id: val });
-                            }
-                          }}>
-                          <option value="">Seleccionar Director...</option>
-                          {availableDirectors.map(u => <option key={u.id} value={u.id}>{u.fullname} ({u.role})</option>)}
+                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, marginBottom: '0.6rem', color: '#475569' }}>Director (Supervisión)</label>
+                        <select required style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '1px solid #cbd5e1' }} value={formData.director_id || ''} onChange={e => setFormData({...formData, director_id: e.target.value})}>
+                          <option value="">Seleccionar director responsable...</option>
+                          {users.filter(u => u.role === 'Director').map(u => <option key={u.id} value={u.id}>{u.fullname}</option>)}
                         </select>
                       </div>
                     </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, marginBottom: '0.6rem', color: '#475569' }}>Responsable (Firma)</label>
+                        <input required placeholder="Nombre completo para rúbrica..." style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '1px solid #cbd5e1' }} value={formData.responsable_nombre || ''} onChange={e => setFormData({...formData, responsable_nombre: e.target.value})} />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, marginBottom: '0.6rem', color: '#475569' }}>Cargo Institucional</label>
+                        <input required placeholder="Ej: Jefe de Unidad, Director..." style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '1px solid #cbd5e1' }} value={formData.responsable_cargo || ''} onChange={e => setFormData({...formData, responsable_cargo: e.target.value})} />
+                      </div>
+                    </div>
+
                     <div>
-                      <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.5rem', fontWeight: 700, color: '#475569' }}>Responsable (Nombre Firma)</label>
-                      <input 
-                        type="text" required
-                        style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0', outline: 'none' }}
-                        value={formData.responsable_nombre || ''} 
-                        onChange={e => setFormData({...formData, responsable_nombre: e.target.value})} 
-                      />
+                      <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, marginBottom: '0.6rem', color: '#475569' }}>Indicador de Cumplimiento</label>
+                      <input placeholder="Ej: Número de informes emitidos, Porcentaje de avance..." style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '1px solid #cbd5e1' }} value={formData.indicador || ''} onChange={e => setFormData({...formData, indicador: e.target.value})} />
                     </div>
+
                     <div>
-                      <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.5rem', fontWeight: 700, color: '#475569' }}>Cargo</label>
-                      <input 
-                        type="text"
-                        style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0', outline: 'none' }}
-                        value={formData.responsable_cargo || ''} 
-                        onChange={e => setFormData({...formData, responsable_cargo: e.target.value})} 
-                      />
+                      <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, marginBottom: '0.6rem', color: '#475569' }}>Resultado esperado al concluir</label>
+                      <textarea placeholder="Descripción del producto o impacto final..." style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '1px solid #cbd5e1', resize: 'none' }} value={formData.resultado_esperado || ''} onChange={e => setFormData({...formData, resultado_esperado: e.target.value})} />
                     </div>
-                    {/* New fields from Kallpatech Doc */}
-                    <div style={{ gridColumn: 'span 2' }}>
-                      <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.5rem', fontWeight: 700, color: '#475569' }}>Indicador de Cumplimiento</label>
-                      <textarea 
-                        rows="2"
-                        placeholder="Ej: Número de informes emitidos, Porcentaje de avance..."
-                        style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0', outline: 'none', resize: 'none' }}
-                        value={formData.indicador || ''} 
-                        onChange={e => setFormData({...formData, indicador: e.target.value})} 
-                      />
-                    </div>
-                    <div style={{ gridColumn: 'span 2' }}>
-                      <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.5rem', fontWeight: 700, color: '#475569' }}>Resultado Esperado</label>
-                      <textarea 
-                        rows="2"
-                        placeholder="Descripción del resultado al concluir la tarea..."
-                        style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0', outline: 'none', resize: 'none' }}
-                        value={formData.resultado_esperado || ''} 
-                        onChange={e => setFormData({...formData, resultado_esperado: e.target.value})} 
-                      />
-                    </div>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.5rem', fontWeight: 700, color: '#475569' }}>¿Vinculada al POA?</label>
-                      <select 
-                        style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0' }} 
-                        value={formData.vinculada_poa || 'NO'} 
-                        onChange={e => setFormData({...formData, vinculada_poa: e.target.value})}
-                      >
-                        <option value="SI">SÍ</option>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                      <label style={{ fontSize: '0.9rem', fontWeight: 800, color: '#1e293b' }}>¿Vinculado al POA?</label>
+                      <select style={{ width: '120px', padding: '0.8rem', borderRadius: '12px', border: '2px solid #cbd5e1', fontWeight: 800 }} value={formData.vinculada_poa || 'NO'} onChange={e => setFormData({...formData, vinculada_poa: e.target.value})}>
                         <option value="NO">NO</option>
+                        <option value="SÍ">SÍ</option>
                       </select>
                     </div>
                   </div>
                 )}
               </div>
 
-              <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', marginTop: '2.5rem' }}>
-                <button type="button" onClick={() => setIsModalOpen(false)} style={{ padding: '0.75rem 1.5rem', borderRadius: '10px', background: '#f1f5f9', border: 'none', fontWeight: 600, color: '#64748b' }}>Cancelar</button>
-                <button type="submit" className="btn-primary" style={{ padding: '0.75rem 2rem', borderRadius: '10px' }}>Guardar Cambios</button>
+              <div style={{ display: 'flex', gap: '1.25rem', justifyContent: 'flex-end', marginTop: '3.5rem', borderTop: '2px solid #f8fafc', paddingTop: '2rem' }}>
+                <button type="button" onClick={() => setIsModalOpen(false)} style={{ padding: '1rem 2rem', borderRadius: '16px', background: '#f1f5f9', border: 'none', fontWeight: 800, color: '#64748b', cursor: 'pointer' }}>Cerrar</button>
+                <button type="submit" className="btn-primary" style={{ padding: '1rem 3rem', borderRadius: '16px', background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)', boxShadow: '0 10px 20px -5px rgba(37, 99, 235, 0.4)' }}>Guardar Cambios</button>
               </div>
             </form>
           </motion.div>
