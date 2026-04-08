@@ -11,7 +11,7 @@ const Documentation = () => {
       icon: <Shield size={32} />,
       color: '#4338ca',
       steps: [
-        { title: 'Configuración Estratégica', desc: 'Gestionar Ejes, Resultados y Estrategias en el Catálogo Institucional.' },
+        { title: 'Configuración Estratégica', desc: 'Gestionar Ejes, Resultados y Estrategias en el módulo MeGAs.' },
         { title: 'Gestión de MeGAs', desc: 'Vincular Metas de Gestión (MeGAs) a su Unidad Responsable y Estrategia Padre.' },
         { title: 'Administración de Usuarios', desc: 'Crear perfiles, asignar roles (Director/Funcionario) y vincularlos a su unidad.' },
         { title: 'Seguimiento Global', desc: 'Supervisar el avance físico consolidado de toda la institución en el Dashboard.' }
