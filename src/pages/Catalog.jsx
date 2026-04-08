@@ -10,7 +10,7 @@ const API_URL = '/api';
 import * as XLSX from 'xlsx';
 
 const Catalog = ({ user }) => {
-  const [activeTab, setActiveTab] = useState('megas');
+  const [activeTab, setActiveTab] = useState(user?.role === 'Admin' ? 'megas' : 'tareas');
   const [data, setData] = useState([]);
   const [units, setUnits] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -401,6 +401,26 @@ const Catalog = ({ user }) => {
       if (isDirector) return u.id === user?.id || (u.role === 'Director' && u.unit_id === user?.unit_id);
       return true;
   });
+  
+  const getRowSpans = (data, fields) => {
+    const rowSpans = fields.reduce((acc, field) => {
+      acc[field] = new Array(data.length).fill(0);
+      return acc;
+    }, {});
+    fields.forEach(field => {
+      let i = 0;
+      while (i < data.length) {
+        let count = 1;
+        while (i + count < data.length && (field === 'producto_name' ? (data[i][field] === data[i + count][field] && data[i].mega_name === data[i+count].mega_name) : data[i][field] === data[i + count][field])) {
+          count++;
+        }
+        rowSpans[field][i] = count;
+        i += count;
+      }
+    });
+    return rowSpans;
+  };
+  const rowSpans = activeTab === 'tareas' ? getRowSpans(filteredData, ['mega_name', 'producto_name']) : {};
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
@@ -420,12 +440,6 @@ const Catalog = ({ user }) => {
                 <option key={y} value={y}>{y}</option>
               ))}
             </select>
-            <button
-              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1rem', border: 'none', background: 'transparent', color: '#475569', cursor: 'pointer', fontWeight: 600, fontSize: '0.9rem' }}
-              onClick={exportFormularioA}
-            >
-              <FileText size={16} /> Formulario A Trimestral
-            </button>
           </div>
           <div style={{ position: 'relative' }}>
             <Search size={16} style={{ position: 'absolute', left: '12px', top: '12px', color: '#94a3b8' }} />
@@ -648,12 +662,20 @@ const Catalog = ({ user }) => {
                 <tr><td colSpan="15" style={{ padding: '3rem', textAlign: 'center', color: '#64748b' }}>No hay registros cargados</td></tr>
               ) : filteredData.length === 0 ? (
                 <tr><td colSpan="15" style={{ padding: '3rem', textAlign: 'center', color: '#64748b' }}>No se encontraron coincidencias</td></tr>
-              ) : filteredData.map(item => (
+              ) : filteredData.map((item, idx) => (
                 <tr key={item.id} style={{ borderBottom: '1px solid #f1f5f9', fontSize: '0.8rem' }}>
                   {activeTab === 'tareas' ? (
                     <>
-                       <td style={{ padding: '1rem', color: '#475569', fontWeight: 600 }}>{item.mega_code} - {item.mega_name?.substring(0,60)}...</td>
-                       <td style={{ padding: '1rem', color: '#64748b' }}>{item.producto_name?.substring(0,80)}...</td>
+                       {rowSpans['mega_name'][idx] > 0 && (
+                         <td rowSpan={rowSpans['mega_name'][idx]} style={{ padding: '1.25rem 1rem', color: '#475569', fontWeight: 600, borderRight: '1px solid #f1f5f9', verticalAlign: 'top', background: 'white' }}>
+                           {item.mega_code} - {item.mega_name?.substring(0,80)}...
+                         </td>
+                       )}
+                       {rowSpans['producto_name'][idx] > 0 && (
+                         <td rowSpan={rowSpans['producto_name'][idx]} style={{ padding: '1.25rem 1rem', color: '#64748b', borderRight: '1px solid #f1f5f9', verticalAlign: 'top', background: 'white' }}>
+                           {item.producto_name?.substring(0,100)}...
+                         </td>
+                       )}
                        <td style={{ padding: '1rem', color: '#64748b' }}>{item.actividad_name}</td>
                     </>
                   ) : (
