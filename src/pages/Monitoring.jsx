@@ -7,6 +7,28 @@ const API_URL = '/api';
 
 import * as XLSX from 'xlsx';
 
+const STATUS_CONFIG = {
+  'Terminado':  { color: '#10b981', bg: '#dcfce7', label: 'Terminado' },
+  'En Proceso': { color: '#f59e0b', bg: '#fef9c3', label: 'En Proceso' },
+  'Retrasado':  { color: '#ef4444', bg: '#fee2e2', label: 'Retrasado'  },
+  'Pendiente':  { color: '#94a3b8', bg: '#f1f5f9', label: 'Pendiente'  },
+};
+
+const StatusBadge = ({ status }) => {
+  const cfg = STATUS_CONFIG[status] || STATUS_CONFIG['En Proceso'];
+  return (
+    <div style={{ 
+      display: 'inline-flex', alignItems: 'center', gap: '6px', 
+      padding: '4px 10px', borderRadius: '10px', background: cfg.bg, 
+      color: cfg.color, fontSize: '0.65rem', fontWeight: 900, 
+      textTransform: 'uppercase', border: `1px solid ${cfg.color}20` 
+    }}>
+      <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: cfg.color }} />
+      {cfg.label}
+    </div>
+  );
+};
+
 const Monitoring = ({ user }) => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -191,9 +213,20 @@ const Monitoring = ({ user }) => {
   };
 
   const filteredData = (data || []).filter(row => {
-    const matchesSearch = (row.mega_name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                         row.producto_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         row.name?.toLowerCase().includes(searchTerm.toLowerCase()));
+    const searchLower = searchTerm.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    
+    const mega = (row.mega_name || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const prod = (row.producto_name || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const act = (row.actividad_name || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const tarea = (row.name || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const code = (row.mega_code || "").toLowerCase();
+    
+    const matchesSearch = mega.includes(searchLower) || 
+                          prod.includes(searchLower) ||
+                          act.includes(searchLower) ||
+                          tarea.includes(searchLower) ||
+                          code.includes(searchLower);
+
     const matchesMega = selectedMega === 'all' || row.mega_id?.toString() === selectedMega;
     return matchesSearch && matchesMega;
   });
@@ -325,7 +358,12 @@ const Monitoring = ({ user }) => {
                       <td style={{ padding: '0.75rem', fontSize: '0.75rem', color: '#475569', fontWeight: 600 }}>{row.mega_code} - {row.mega_name?.substring(0,40)}...</td>
                       <td style={{ padding: '0.75rem', fontSize: '0.75rem', color: '#64748b' }}>{row.producto_name?.substring(0,50)}...</td>
                       <td style={{ padding: '0.75rem', fontSize: '0.75rem', color: '#64748b' }}>{row.actividad_name?.substring(0,50)}...</td>
-                      <td style={{ padding: '0.75rem', color: '#0f172a', fontWeight: 800, fontSize: '0.8rem' }}>{row.name}</td>
+                      <td style={{ padding: '0.75rem', color: '#0f172a', fontSize: '0.8rem' }}>
+                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                           <span style={{ fontWeight: 800 }}>{row.name}</span>
+                           <StatusBadge status={row.estado_calculado} />
+                         </div>
+                      </td>
                       <td style={{ textAlign: 'center', fontWeight: 900, color: '#2563eb', fontSize: '0.9rem' }}>
                         {parseFloat(row.ponderacion_producto || 0).toFixed(1)}%
                       </td>
