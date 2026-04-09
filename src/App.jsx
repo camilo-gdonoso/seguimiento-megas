@@ -40,7 +40,7 @@ const Layout = ({ children, user, onLogout }) => {
       { path: '/usuarios', label: 'Usuarios', icon: <UsersIcon size={20} /> },
       { path: '/auditoria', label: 'Auditoría', icon: <ShieldCheck size={20} /> },
     ] : []),
-    { path: '/documentacion', label: 'Ayuda / Manual', icon: <Book size={20} /> },
+    { path: '/documentacion', label: 'Ayuda', icon: <Book size={20} /> },
   ];
 
   return (

@@ -73,7 +73,7 @@ const Dashboard = ({ user }) => {
             <Globe size={24} />
           </div>
           <div>
-            <p style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 600 }}>Avance Global SPIE</p>
+            <p style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 600 }}>Avance Global</p>
             <h3 style={{ fontSize: '1.5rem', fontWeight: 700 }}>{stats.global}%</h3>
           </div>
         </div>
