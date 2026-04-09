@@ -125,15 +125,6 @@ const Documentation = () => {
               </div>
            </div>
 
-           <div className="glass-card" style={{ padding: '2rem', background: 'var(--primary)', color: 'white' }}>
-             <h3 style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: '1rem' }}>Soporte Técnico Especializado</h3>
-             <p style={{ fontSize: '0.85rem', opacity: 0.9, lineHeight: 1.6, marginBottom: '1.5rem' }}>
-               Si tiene inconvenientes con su perfil o roles asignados, contacte a TIC.
-             </p>
-             <button style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', background: 'white', color: 'var(--primary)', fontWeight: 800, border: 'none', cursor: 'pointer' }}>
-               Enviar Solicitud
-             </button>
-           </div>
         </div>
       </div>
     </motion.div>
