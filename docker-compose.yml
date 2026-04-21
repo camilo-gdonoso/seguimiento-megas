@@ -3,13 +3,13 @@ services:
   db:
     image: postgres:15-alpine
     environment:
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: secretpassword
-      POSTGRES_DB: meubles_erp
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
     ports:
-      - "5435:5432"
+      - "${DB_PORT_EXTERNAL}:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - megas_data:/var/lib/postgresql/data
 
   backend:
     build: ./server
@@ -17,9 +17,9 @@ services:
       - ./server:/app
       - /app/node_modules
     ports:
-      - "3000:3000"
+      - "${PORT}:3000"
     environment:
-      DATABASE_URL: postgres://admin:secretpassword@db:5432/meubles_erp
+      DATABASE_URL: ${DATABASE_URL}
     restart: unless-stopped
     depends_on:
       - db
@@ -28,10 +28,10 @@ services:
   frontend:
     build: .
     ports:
-      - "80:80"
+      - "${FRONTEND_PORT}:80"
     depends_on:
       - backend
     restart: unless-stopped
 
 volumes:
-  postgres_data:
+  megas_data:
