@@ -1024,7 +1024,6 @@ const Catalog = ({ user }) => {
                         </div>
                       </div>
                     </div>
-                    )}
 
                     <div style={{ background: '#f8fafc', padding: '1.5rem', borderRadius: '24px', border: '1px solid #e2e8f0' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
