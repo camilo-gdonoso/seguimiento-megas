@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { FileText, Users, Printer, Download } from 'lucide-react';
 import axios from 'axios';
+import { groupTasksByUser } from '../utils/matrix';
 
 const API_URL = '/api';
 
@@ -17,30 +18,8 @@ const ConsolidatedMatrix = () => {
   const fetchData = async () => {
     try {
       const res = await axios.get(`${API_URL}/tareas_detail`);
-      const tasks = res.data;
-      
-      // Group by user
-      const grouped = tasks.reduce((acc, task) => {
-        const userId = task.user_id || 'unassigned';
-        if (!acc[userId]) acc[userId] = { 
-          info: { 
-            name: task.responsable_nombre || 'Sin Asignar',
-            cargo: task.responsable_cargo || '---',
-            unidad: task.unit_name || '---' 
-          },
-          planificadas: [],
-          noPlanificadas: []
-        };
-        
-        if (task.vinculada_poa === 'SI') {
-          acc[userId].planificadas.push(task);
-        } else {
-          acc[userId].noPlanificadas.push(task);
-        }
-        return acc;
-      }, {});
-
-      setData(Object.values(grouped));
+      const grouped = groupTasksByUser(res.data);
+      setData(grouped);
     } catch (err) {
       console.error(err);
     } finally {
