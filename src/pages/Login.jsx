@@ -21,7 +21,9 @@ const Login = ({ onLogin }) => {
     } catch (err) {
       const serverError = err.response?.data;
       if (typeof serverError === 'object' && serverError !== null) {
-        setError(serverError.error || serverError.message || 'Error del servidor');
+        const errorDetail = serverError.error || serverError;
+        const msg = typeof errorDetail === 'string' ? errorDetail : (errorDetail.message || serverError.message || 'Error del servidor');
+        setError(msg);
       } else {
         setError(serverError || 'Error al conectar con el servidor');
       }
