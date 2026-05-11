@@ -32,7 +32,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: process.env.DATABASE_URL?.includes('neon.tech') ? { rejectUnauthorized: false } : false
+    ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
 });
 
 // Middleware for Vercel initialization - MUST BE AT THE TOP
@@ -75,6 +75,11 @@ app.use(async (req, res, next) => {
             isDbInitialized = true;
         } catch (err) {
             console.error('Critical initialization error:', err);
+            return res.status(500).json({ 
+                error: 'Error de inicialización de Base de Datos', 
+                details: err.message,
+                hint: 'Verifica la variable DATABASE_URL en Vercel'
+            });
         }
     }
     next();
