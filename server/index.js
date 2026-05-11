@@ -162,6 +162,15 @@ const initDb = async () => {
             ALTER TABLE actividades ADD COLUMN IF NOT EXISTS user_id INTEGER;
             ALTER TABLE actividades ADD COLUMN IF NOT EXISTS director_id INTEGER;
             ALTER TABLE actividades ADD COLUMN IF NOT EXISTS avance_fisico DECIMAL(5,2) DEFAULT 0.00;
+
+            ALTER TABLE tareas ADD COLUMN IF NOT EXISTS user_id INTEGER;
+            ALTER TABLE tareas ADD COLUMN IF NOT EXISTS director_id INTEGER;
+            ALTER TABLE tareas ADD COLUMN IF NOT EXISTS responsable_nombre TEXT;
+            ALTER TABLE tareas ADD COLUMN IF NOT EXISTS responsable_cargo TEXT;
+            ALTER TABLE tareas ADD COLUMN IF NOT EXISTS medio_verificacion TEXT;
+            ALTER TABLE tareas ADD COLUMN IF NOT EXISTS tipo_avance VARCHAR(20) DEFAULT 'Semanal';
+            ALTER TABLE tareas ADD COLUMN IF NOT EXISTS planograma JSONB;
+            ALTER TABLE tareas ADD COLUMN IF NOT EXISTS ponderacion_producto DECIMAL(5,2) DEFAULT 0.00;
         `);
         await pool.query(`CREATE TABLE IF NOT EXISTS tareas (
             id SERIAL PRIMARY KEY, 
@@ -404,7 +413,7 @@ app.get('/api/tareas_detail', async (req, res) => {
                     SELECT JSON_AGG(av.* ORDER BY av.semana ASC) 
                     FROM avances_semanales av 
                     WHERE av.tarea_id = t.id
-                ), '[]') as avances
+                ), '[]'::json) as avances
             FROM tareas t 
             LEFT JOIN actividades a ON t.actividad_id = a.id 
             LEFT JOIN productos_intermedios p ON a.producto_id = p.id 
