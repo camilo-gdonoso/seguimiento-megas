@@ -12,6 +12,7 @@ const ConsolidatedMatrix = () => {
   const [loading, setLoading] = useState(true);
   const [units, setUnits] = useState([]);
   const [selectedUnit, setSelectedUnit] = useState('all');
+  const [averages, setAverages] = useState({ poa: 0, noPoa: 0 });
 
   useEffect(() => {
     fetchData();
@@ -38,6 +39,17 @@ const ConsolidatedMatrix = () => {
       
       const grouped = groupTasksByUser(tasks);
       setData(grouped);
+
+      // Calculate global averages for this view
+      const poaTasks = tasks.filter(t => t.vinculada_poa === 'SI');
+      const noPoaTasks = tasks.filter(t => t.vinculada_poa !== 'SI');
+      
+      const calcAvg = (ts) => ts.length > 0 ? (ts.reduce((acc, t) => acc + (parseFloat(t.avance_fisico) || 0), 0) / ts.length) : 0;
+      
+      setAverages({
+        poa: calcAvg(poaTasks).toFixed(1),
+        noPoa: calcAvg(noPoaTasks).toFixed(1)
+      });
     } catch (err) {
       console.error(err);
     } finally {
@@ -58,8 +70,8 @@ const ConsolidatedMatrix = () => {
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ padding: '2rem' }}>
       <header style={{ marginBottom: '2.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h1 className="hero-title">Matriz Consolidada por Funcionario</h1>
-          <p style={{ color: '#64748b' }}>Vista integral de planificación y seguimiento individual</p>
+          <h1 className="hero-title">Matriz Consolidada de Seguimiento</h1>
+          <p style={{ color: '#64748b' }}>Vista integral de planificación y cumplimiento por funcionario/unidad</p>
         </div>
         <div style={{ display: 'flex', gap: '1rem' }}>
            <select 
@@ -67,12 +79,35 @@ const ConsolidatedMatrix = () => {
              value={selectedUnit}
              onChange={e => setSelectedUnit(e.target.value)}
            >
-             <option value="all">Todas las Unidades / Direcciones</option>
+             <option value="all">Todas las Direcciones / Unidades</option>
              {units.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
            </select>
            <button className="btn-secondary" onClick={() => window.print()}><Printer size={18} /> Imprimir Reporte</button>
         </div>
       </header>
+
+      {!loading && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '3rem' }}>
+          <div className="glass-card" style={{ padding: '1.5rem', borderLeft: '6px solid #3b82f6', background: 'white' }}>
+            <p style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', marginBottom: '0.5rem' }}>Avance Global Actividades POA</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <h2 style={{ fontSize: '2.2rem', fontWeight: 900, color: '#1e293b', margin: 0 }}>{averages.poa}%</h2>
+              <div style={{ flex: 1, height: '12px', background: '#f1f5f9', borderRadius: '6px', overflow: 'hidden' }}>
+                <div style={{ width: `${averages.poa}%`, height: '100%', background: '#3b82f6' }} />
+              </div>
+            </div>
+          </div>
+          <div className="glass-card" style={{ padding: '1.5rem', borderLeft: '6px solid #8b5cf6', background: 'white' }}>
+            <p style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', marginBottom: '0.5rem' }}>Avance Global Actividades No Planificadas</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <h2 style={{ fontSize: '2.2rem', fontWeight: 900, color: '#1e293b', margin: 0 }}>{averages.noPoa}%</h2>
+              <div style={{ flex: 1, height: '12px', background: '#f1f5f9', borderRadius: '6px', overflow: 'hidden' }}>
+                <div style={{ width: `${averages.noPoa}%`, height: '100%', background: '#8b5cf6' }} />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div style={{ textAlign: 'center', padding: '5rem' }}>Generando matriz...</div>
@@ -103,11 +138,11 @@ const ConsolidatedMatrix = () => {
               </div>
 
               <div style={{ padding: '1rem' }}>
-                <SectionTitle title="Actividades Planificadas (POA)" color="#3b82f6" />
+                <SectionTitle title="Actividades Planificadas (POA)" color="#3b82f6" tasks={user.planificadas} />
                 <MatrixTable tasks={user.planificadas} />
                 
-                <div style={{ marginTop: '2rem' }}>
-                  <SectionTitle title="Actividades No Planificadas / Aisladas" color="#8b5cf6" />
+                <div style={{ marginTop: '2.5rem' }}>
+                  <SectionTitle title="Actividades No Planificadas / Aisladas" color="#8b5cf6" tasks={user.noPlanificadas} />
                   <MatrixTable tasks={user.noPlanificadas} />
                 </div>
               </div>
@@ -119,11 +154,22 @@ const ConsolidatedMatrix = () => {
   );
 };
 
-const SectionTitle = ({ title, color }) => (
-  <div style={{ padding: '0.75rem 1.5rem', background: color, color: 'white', fontWeight: 900, fontSize: '0.9rem', borderRadius: '12px', marginBottom: '1rem' }}>
-    {title}
-  </div>
-);
+const SectionTitle = ({ title, color, tasks }) => {
+  const avg = tasks.length > 0 ? (tasks.reduce((acc, t) => acc + (parseFloat(t.avance_fisico) || 0), 0) / tasks.length).toFixed(1) : '0.0';
+  
+  return (
+    <div style={{ 
+      padding: '0.75rem 1.5rem', background: color, color: 'white', 
+      fontWeight: 900, fontSize: '0.9rem', borderRadius: '12px', marginBottom: '1rem',
+      display: 'flex', justifyContent: 'space-between', alignItems: 'center' 
+    }}>
+      <span>{title}</span>
+      <span style={{ background: 'rgba(0,0,0,0.1)', padding: '0.2rem 0.75rem', borderRadius: '8px', fontSize: '0.8rem' }}>
+        Avance Promedio: {avg}%
+      </span>
+    </div>
+  );
+};
 
 const MatrixTable = ({ tasks }) => {
   if (tasks.length === 0) return <div style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8', fontStyle: 'italic' }}>Sin registros en esta categoría</div>;
