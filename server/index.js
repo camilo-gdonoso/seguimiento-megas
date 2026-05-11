@@ -687,13 +687,16 @@ app.get('/api/dashboard-stats', async (req, res) => {
         }
 
         const megasProgress = await pool.query(`SELECT m.code, m.name, m.avance_fisico as progress FROM megas m ${megaFilter} ORDER BY m.avance_fisico DESC LIMIT 8`);
+        
         const globalProgress = await pool.query(`
             SELECT (
-                COALESCE((SELECT SUM(m.avance_fisico) FROM megas m ${megaFilter}), 0) + 
-                COALESCE((SELECT SUM(t.avance_fisico) FROM tareas t WHERE t.is_isolated = TRUE ${role === 'Tecnico' ? 'AND t.user_id = ' + safeUserId : ''}), 0)
-            ) / NULLIF(
-                (SELECT COUNT(*) FROM megas m ${megaFilter}) + 
-                (SELECT COUNT(*) FROM tareas t WHERE t.is_isolated = TRUE ${role === 'Tecnico' ? 'AND t.user_id = ' + safeUserId : ''}), 0
+                (COALESCE((SELECT SUM(m.avance_fisico) FROM megas m ${megaFilter}), 0) + 
+                 COALESCE((SELECT SUM(t.avance_fisico) FROM tareas t WHERE t.is_isolated = TRUE ${role === 'Tecnico' ? 'AND t.user_id = ' + safeUserId : ''}), 0))::numeric
+                / 
+                NULLIF(
+                    (SELECT COUNT(*) FROM megas m ${megaFilter}) + 
+                    (SELECT COUNT(*) FROM tareas t WHERE t.is_isolated = TRUE ${role === 'Tecnico' ? 'AND t.user_id = ' + safeUserId : ''}), 0
+                )
             ) as global
         `);
 
@@ -843,7 +846,8 @@ app.get('/api/dashboard-stats', async (req, res) => {
             }))
         });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        console.error('DASHBOARD STATS ERROR:', err);
+        res.status(500).json({ error: err.message, stack: err.stack });
     }
 });
 
