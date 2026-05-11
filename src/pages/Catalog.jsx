@@ -35,6 +35,11 @@ const Catalog = ({ user }) => {
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [wizardStep, setWizardStep] = useState(1);
   const [wizardData, setWizardData] = useState({ mega: {}, producto: {}, actividad: {}, tarea: {} });
+  
+  const [isTrackingModalOpen, setIsTrackingModalOpen] = useState(false);
+  const [selectedTaskForTracking, setSelectedTaskForTracking] = useState(null);
+  const [selectedWeekForTracking, setSelectedWeekForTracking] = useState(null);
+  const [trackingFormData, setTrackingFormData] = useState({ avance_real: '', observacion: '', evidencia_url: '' });
 
   const [exportYear, setExportYear] = useState(new Date().getFullYear());
 
@@ -256,6 +261,37 @@ const Catalog = ({ user }) => {
       setAlertDialog({ isOpen: true, title: 'Éxito', message: 'Estructura jerárquica creada y vinculada correctamente.', type: 'success' });
     } catch (err) {
       setError(err.response?.data?.error || 'Error al procesar el asistente');
+    }
+  };
+
+  const handleSaveTracking = async () => {
+    try {
+      setError(null);
+      const payload = {
+        tarea_id: selectedTaskForTracking.id,
+        semana: selectedWeekForTracking,
+        avance_real: trackingFormData.avance_real,
+        observacion: trackingFormData.observacion,
+        evidencia_url: trackingFormData.evidencia_url
+      };
+      
+      if (trackingFormData.evidence_file) {
+          const fileFormData = new FormData();
+          fileFormData.append('evidencia', trackingFormData.evidence_file);
+          const uploadRes = await axios.post(`${API_URL}/upload`, fileFormData, {
+              headers: { 'Content-Type': 'multipart/form-data' }
+          });
+          if (uploadRes.data.success) {
+              payload.evidencia_url = uploadRes.data.url;
+          }
+      }
+
+      await axios.post(`${API_URL}/avances-semanales`, payload);
+      setIsTrackingModalOpen(false);
+      fetchData();
+      setAlertDialog({ isOpen: true, title: 'Éxito', message: 'Reporte de avance enviado correctamente.', type: 'success' });
+    } catch (err) {
+      setError(err.response?.data?.error || 'Error al reportar avance');
     }
   };
 
@@ -601,6 +637,7 @@ const Catalog = ({ user }) => {
                 {activeTab === 'actividades' && <th style={{ padding: '1.25rem', fontSize: '0.75rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase' }}>PRODUCTO INTERMEDIO</th>}
                 {activeTab === 'megas' && <th style={{ padding: '1.25rem', fontSize: '0.75rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase' }}>AVANCE FÍSICO</th>}
                 {activeTab === 'productos' && <th style={{ padding: '1.25rem', fontSize: '0.75rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase' }}>PESO % MeGA</th>}
+                {(activeTab === 'tareas' || activeTab === 'tareas_aisladas') && <th style={{ padding: '1.25rem', fontSize: '0.75rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase' }}>SEGUIMIENTO / AVANCE</th>}
                 {isAdmin && <th style={{ padding: '1.25rem', fontSize: '0.75rem', color: '#475569', fontWeight: 800, textAlign: 'right', textTransform: 'uppercase' }}>ACCIONES</th>}
               </tr>
             </thead>
@@ -698,6 +735,45 @@ const Catalog = ({ user }) => {
                            <span>{item.responsable_nombre || '---'}</span>
                            <span style={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: 500 }}>{item.responsable_cargo || '---'}</span>
                         </div>
+                      </td>
+                      <td style={{ padding: '1rem' }}>
+                         <div style={{ display: 'flex', gap: '0.4rem', overflowX: 'auto', maxWidth: '300px', paddingBottom: '0.5rem' }}>
+                            {item.planograma?.map((p, pIdx) => {
+                               const avance = (item.avances || []).find(av => Number(av.semana) === Number(p.periodo));
+                               return (
+                                 <motion.div 
+                                   whileHover={{ scale: 1.05 }}
+                                   key={pIdx} 
+                                   onClick={() => {
+                                      setSelectedTaskForTracking(item);
+                                      setSelectedWeekForTracking(p.periodo);
+                                      setTrackingFormData({
+                                        avance_real: avance ? avance.avance_real : '',
+                                        observacion: avance ? avance.observacion : '',
+                                        evidencia_url: avance ? avance.evidencia_url : ''
+                                      });
+                                      setIsTrackingModalOpen(true);
+                                   }}
+                                   style={{ 
+                                     minWidth: '55px', 
+                                     padding: '0.4rem', 
+                                     borderRadius: '12px', 
+                                     background: avance ? '#dcfce7' : '#f8fafc',
+                                     border: avance ? '2px solid #22c55e' : '2px solid #e2e8f0',
+                                     textAlign: 'center',
+                                     cursor: 'pointer',
+                                     boxShadow: avance ? '0 4px 6px -1px rgba(34, 197, 94, 0.2)' : 'none'
+                                   }}
+                                 >
+                                   <div style={{ fontSize: '0.6rem', fontWeight: 900, color: avance ? '#166534' : '#64748b', textTransform: 'uppercase' }}>S{p.periodo}</div>
+                                   <div style={{ fontSize: '0.75rem', fontWeight: 900, color: avance ? '#15803d' : '#1e293b' }}>
+                                      {avance ? `${parseFloat(avance.avance_real).toFixed(0)}${item.is_hitos_mode ? '' : '%'}` : `${parseFloat(p.valor).toFixed(0)}${item.is_hitos_mode ? '' : '%'}`}
+                                   </div>
+                                   <div style={{ width: '100%', height: '3px', background: avance ? '#22c55e' : '#cbd5e1', borderRadius: '2px', marginTop: '4px' }} />
+                                 </motion.div>
+                               );
+                            })}
+                         </div>
                       </td>
                       {isAdmin && (
                         <td style={{ padding: '1rem', borderLeft: '1px solid #f1f5f9' }}>
@@ -1135,6 +1211,60 @@ const Catalog = ({ user }) => {
                 <button className="btn-primary" onClick={() => { if (wizardStep < 4) setWizardStep(wizardStep + 1); else handleWizardSave(); }}>
                   {wizardStep === 4 ? 'Finalizar y Crear Estructura' : 'Siguiente'}
                 </button>
+             </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Tracking Modal */}
+      {isTrackingModalOpen && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100, padding: '2rem' }}>
+          <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="glass-card" style={{ width: '500px', padding: '2.5rem', background: 'white', borderRadius: '24px' }}>
+             <h2 style={{ fontSize: '1.5rem', fontWeight: 900, marginBottom: '0.5rem' }}>Reportar Seguimiento (S{selectedWeekForTracking})</h2>
+             <p style={{ color: '#64748b', fontSize: '0.85rem', marginBottom: '1.5rem' }}>{selectedTaskForTracking?.name}</p>
+
+             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, marginBottom: '0.5rem' }}>Avance Real {selectedTaskForTracking?.is_hitos_mode ? '(Hitos)' : '(%)'}</label>
+                  <input 
+                    type="number" 
+                    placeholder="Ej: 5" 
+                    style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '2px solid #3b82f6', fontWeight: 900, fontSize: '1.2rem' }} 
+                    value={trackingFormData.avance_real} 
+                    onChange={e => setTrackingFormData({...trackingFormData, avance_real: e.target.value})} 
+                  />
+                </div>
+                
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, marginBottom: '0.5rem' }}>Observaciones / Comentarios</label>
+                  <textarea 
+                    rows="3" 
+                    placeholder="Detalle el cumplimiento..." 
+                    style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '1px solid #cbd5e1' }} 
+                    value={trackingFormData.observacion} 
+                    onChange={e => setTrackingFormData({...trackingFormData, observacion: e.target.value})} 
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, marginBottom: '0.5rem' }}>Evidencia (Archivo)</label>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <input type="file" id="trackUpload" style={{ display: 'none' }} onChange={e => setTrackingFormData({...trackingFormData, evidence_file: e.target.files[0], evidence_name: e.target.files[0].name})} />
+                    <button onClick={() => document.getElementById('trackUpload').click()} style={{ flex: 1, padding: '0.75rem', borderRadius: '12px', border: '2px dashed #3b82f6', background: '#eff6ff', color: '#3b82f6', fontWeight: 700, cursor: 'pointer' }}>
+                      {trackingFormData.evidence_name || 'Subir Evidencia 📎'}
+                    </button>
+                    {trackingFormData.evidencia_url && (
+                      <a href={`${API_URL}${trackingFormData.evidencia_url}`} target="_blank" rel="noreferrer" style={{ padding: '0.75rem', background: '#f1f5f9', borderRadius: '12px', display: 'flex', alignItems: 'center' }}>
+                         <FileText size={18} />
+                      </a>
+                    )}
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+                  <button className="btn-secondary" onClick={() => setIsTrackingModalOpen(false)} style={{ flex: 1 }}>Cancelar</button>
+                  <button className="btn-primary" onClick={handleSaveTracking} style={{ flex: 1 }}>Guardar Reporte</button>
+                </div>
              </div>
           </motion.div>
         </div>

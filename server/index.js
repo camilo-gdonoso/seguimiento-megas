@@ -395,7 +395,16 @@ app.get('/api/actividades_detail', async (req, res) => {
 app.get('/api/tareas_detail', async (req, res) => {
     try {
         const result = await pool.query(`
-            SELECT t.*, a.name as actividad_name, a.code as actividad_code, p.name as producto_name, p.code as producto_code, m.name as mega_name, m.code as mega_code 
+            SELECT 
+                t.*, 
+                a.name as actividad_name, a.code as actividad_code, 
+                p.name as producto_name, p.code as producto_code, 
+                m.name as mega_name, m.code as mega_code,
+                COALESCE((
+                    SELECT JSON_AGG(av.* ORDER BY av.semana ASC) 
+                    FROM avances_semanales av 
+                    WHERE av.tarea_id = t.id
+                ), '[]') as avances
             FROM tareas t 
             LEFT JOIN actividades a ON t.actividad_id = a.id 
             LEFT JOIN productos_intermedios p ON a.producto_id = p.id 
