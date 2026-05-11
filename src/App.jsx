@@ -70,7 +70,7 @@ const Layout = ({ children, user, onLogout }) => {
           <img src="/logo_ministerioa_trabajo.png" alt="Logo" style={{ height: '32px', objectFit: 'contain' }} />
           {!isCollapsed && (
             <div>
-              <h2 style={{ fontSize: '1.1rem', color: '#1e293b', fontWeight: 900, margin: 0, letterSpacing: '-0.02em' }}>SISTEMA <span style={{ color: 'var(--primary)' }}>MeGAs</span></h2>
+              <h2 style={{ fontSize: '1.1rem', color: '#1e293b', fontWeight: 900, margin: 0, letterSpacing: '-0.02em' }}>Matriz de <span style={{ color: 'var(--primary)' }}>Planificación</span></h2>
               <p style={{ fontSize: '0.5rem', color: '#64748b', fontWeight: 600, margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>MTEPS 2026-2030</p>
             </div>
           )}

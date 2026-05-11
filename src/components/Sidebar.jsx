@@ -52,7 +52,7 @@ const Sidebar = () => {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                         <img src="/logo_ministerioa_trabajo.png" alt="Logo" style={{ height: '32px' }} />
                         <div>
-                            <h1 style={{ fontSize: '1.1rem', fontWeight: 900, color: 'white', margin: 0 }}>SISTEMA <span style={{ color: 'var(--primary)' }}>MeGAs</span></h1>
+                            <h1 style={{ fontSize: '1.1rem', fontWeight: 900, color: 'white', margin: 0 }}>Matriz de <span style={{ color: 'var(--primary)' }}>Planificación</span></h1>
                             <p style={{ fontSize: '0.55rem', opacity: 0.6, margin: 0, fontWeight: 600, color: '#94a3b8' }}>Caminando hacia la Agenda 50/50</p>
                         </div>
                     </div>

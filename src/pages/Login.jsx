@@ -56,7 +56,7 @@ const Login = ({ onLogin }) => {
             letterSpacing: '-0.02em',
             margin: '0 0 0.5rem 0'
           }}>
-            SISTEMA MeGAs
+            Matriz de Planificación
           </h1>
           <p style={{ 
             color: '#64748b', 
