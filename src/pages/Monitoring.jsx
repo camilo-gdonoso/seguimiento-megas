@@ -41,6 +41,12 @@ const Monitoring = ({ user }) => {
   const [productos, setProductos] = useState([]);
   const [actividades, setActividades] = useState([]);
   
+  // Advanced Filters
+  const [selectedStatus, setSelectedStatus] = useState('all');
+  const [dateStart, setDateStart] = useState('');
+  const [dateEnd, setDateEnd] = useState('');
+  const [selectedType, setSelectedType] = useState('all'); // planificadas | noplanificadas
+  
   // Custom Modals States
   const [alertDialog, setAlertDialog] = useState({ isOpen: false, title: '', message: '', type: 'info' });
   const [obsDialog, setObsDialog] = useState({ isOpen: false, tareaId: null, semana: null, text: '' });
@@ -242,15 +248,26 @@ const Monitoring = ({ user }) => {
     const act = (row.actividad_name || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     const tarea = (row.name || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     const code = (row.mega_code || "").toLowerCase();
+    const responsable = (row.responsable_nombre || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     
     const matchesSearch = mega.includes(searchLower) || 
                           prod.includes(searchLower) ||
                           act.includes(searchLower) ||
                           tarea.includes(searchLower) ||
-                          code.includes(searchLower);
+                          code.includes(searchLower) ||
+                          responsable.includes(searchLower);
 
     const matchesMega = selectedMega === 'all' || row.mega_id?.toString() === selectedMega;
-    return matchesSearch && matchesMega;
+    const matchesStatus = selectedStatus === 'all' || row.estado_calculado === selectedStatus;
+    const matchesType = selectedType === 'all' || 
+                        (selectedType === 'planificadas' && row.vinculada_poa === 'SI') ||
+                        (selectedType === 'noplanificadas' && (row.vinculada_poa === 'NO' || !row.vinculada_poa));
+    
+    let matchesDates = true;
+    if (dateStart && row.fecha_inicio) matchesDates = matchesDates && new Date(row.fecha_inicio) >= new Date(dateStart);
+    if (dateEnd && row.fecha_fin) matchesDates = matchesDates && new Date(row.fecha_fin) <= new Date(dateEnd);
+
+    return matchesSearch && matchesMega && matchesStatus && matchesType && matchesDates;
   });
 
   if (loading) return (
@@ -262,7 +279,7 @@ const Monitoring = ({ user }) => {
 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="p-8">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '3rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2rem' }}>
         <div>
           <h1 style={{ fontSize: '2.5rem', fontWeight: 900, color: '#0f172a', letterSpacing: '-0.04em', lineHeight: 1.1 }}>
             Seguimiento <span style={{ color: '#2563eb' }}>Actividades</span>
@@ -275,14 +292,9 @@ const Monitoring = ({ user }) => {
           <button 
             className="btn-primary" 
             style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '0.6rem', 
-              background: 'white', 
-              color: '#10b981', 
-              border: '2px solid #10b981',
-              padding: '0.75rem 1.25rem',
-              boxShadow: '0 4px 6px -1px rgba(16, 185, 129, 0.1)'
+              display: 'flex', alignItems: 'center', gap: '0.6rem', 
+              background: 'white', color: '#10b981', border: '2px solid #10b981',
+              padding: '0.75rem 1.25rem', boxShadow: '0 4px 6px -1px rgba(16, 185, 129, 0.1)'
             }}
             onClick={exportToExcel}
           >
@@ -291,53 +303,66 @@ const Monitoring = ({ user }) => {
         </div>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2.5rem', gap: '2rem' }}>
-        <div style={{ display: 'flex', gap: '1rem', flex: 1 }}>
-          <div style={{ position: 'relative', flex: 1 }}>
-            <Search style={{ position: 'absolute', left: '1.25rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} size={20} />
+      <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '24px', background: 'white', border: '1px solid #e2e8f0', marginBottom: '2.5rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+          <div style={{ position: 'relative' }}>
+            <Search style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} size={18} />
             <input 
               type="text" 
-              placeholder="Buscar por Tarea, MeGA o Producto..." 
-              className="glass-card"
-              style={{ width: '100%', padding: '1rem 1rem 1rem 3.5rem', borderRadius: '16px', border: '1px solid #e2e8f0', outline: 'none', fontSize: '1rem', background: 'white', transition: 'all 0.3s' }}
+              placeholder="Buscar por Tarea, MeGA, Producto o Responsable..." 
+              style={{ width: '100%', padding: '0.75rem 1rem 0.75rem 2.75rem', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none', background: '#f8fafc' }}
               value={searchTerm}
-              onFocus={(e) => e.target.style.borderColor = '#3b82f6'}
-              onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
+          
           <select 
-            className="glass-card"
-            style={{ padding: '0 1.5rem', borderRadius: '16px', border: '1px solid #e2e8f0', outline: 'none', fontSize: '1rem', width: '300px', background: 'white' }}
+            style={{ padding: '0.75rem 1rem', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none', background: '#f8fafc' }}
             value={selectedMega}
             onChange={(e) => setSelectedMega(e.target.value)}
           >
             <option value="all">Todos los MeGAs</option>
-            {megasList.map(m => <option key={m.id} value={m.id}>{m.code}: {m.name?.substring(0, 40)}...</option>)}
+            {megasList.map(m => <option key={m.id} value={m.id}>{m.code}: {m.name?.substring(0, 30)}...</option>)}
           </select>
-        </div>
 
-        <motion.div 
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '1rem', 
-            padding: '1rem 1.5rem', 
-            background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)', 
-            borderRadius: '20px', 
-            border: '1px solid #bae6fd',
-            maxWidth: '450px'
-          }}
-        >
-          <div style={{ background: '#3b82f6', padding: '0.5rem', borderRadius: '12px' }}>
-            <Info size={20} style={{ color: 'white' }} />
+          <select 
+            style={{ padding: '0.75rem 1rem', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none', background: '#f8fafc' }}
+            value={selectedStatus}
+            onChange={(e) => setSelectedStatus(e.target.value)}
+          >
+            <option value="all">Todos los Estados</option>
+            <option value="Terminado">Terminados</option>
+            <option value="En Proceso">En Proceso</option>
+            <option value="Retrasado">Retrasados</option>
+            <option value="Pendiente">Pendientes</option>
+          </select>
+
+          <select 
+            style={{ padding: '0.75rem 1rem', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none', background: '#f8fafc' }}
+            value={selectedType}
+            onChange={(e) => setSelectedType(e.target.value)}
+          >
+            <option value="all">Tipos de Actividad: Todas</option>
+            <option value="planificadas">Planificadas (POA)</option>
+            <option value="noplanificadas">No Planificadas</option>
+          </select>
+
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <input 
+              type="date" 
+              style={{ padding: '0.6rem', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.75rem', flex: 1 }} 
+              value={dateStart} 
+              onChange={e => setDateStart(e.target.value)} 
+            />
+            <span style={{ color: '#94a3b8' }}>-</span>
+            <input 
+              type="date" 
+              style={{ padding: '0.6rem', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.75rem', flex: 1 }} 
+              value={dateEnd} 
+              onChange={e => setDateEnd(e.target.value)} 
+            />
           </div>
-          <p style={{ fontSize: '0.9rem', color: '#0369a1', fontWeight: 600, margin: 0, lineHeight: '1.5' }}>
-            <span style={{ fontWeight: 800 }}>Reporting:</span> Haz clic en los porcentajes <span style={{ color: '#10b981' }}>Debajo del Plan</span> para actualizar el avance de la tarea.
-          </p>
-        </motion.div>
+        </div>
       </div>
 
       <div className="glass-card" style={{ overflow: 'hidden', borderRadius: '24px', background: 'white', border: '1px solid #f1f5f9', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.05)' }}>
