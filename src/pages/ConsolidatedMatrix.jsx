@@ -10,15 +10,33 @@ const API_URL = '/api';
 const ConsolidatedMatrix = () => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [units, setUnits] = useState([]);
+  const [selectedUnit, setSelectedUnit] = useState('all');
 
   useEffect(() => {
     fetchData();
-  }, []);
+    fetchUnits();
+  }, [selectedUnit]);
+
+  const fetchUnits = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/unidades`);
+      setUnits(res.data);
+    } catch (e) { console.error(e); }
+  };
 
   const fetchData = async () => {
     try {
+      setLoading(true);
       const res = await axios.get(`${API_URL}/tareas_detail`);
-      const grouped = groupTasksByUser(res.data);
+      let tasks = res.data;
+      
+      // Filter by unit if selected
+      if (selectedUnit !== 'all') {
+        tasks = tasks.filter(t => t.unit_id?.toString() === selectedUnit);
+      }
+      
+      const grouped = groupTasksByUser(tasks);
       setData(grouped);
     } catch (err) {
       console.error(err);
@@ -44,7 +62,15 @@ const ConsolidatedMatrix = () => {
           <p style={{ color: '#64748b' }}>Vista integral de planificación y seguimiento individual</p>
         </div>
         <div style={{ display: 'flex', gap: '1rem' }}>
-           <button className="btn-secondary" onClick={() => window.print()}><Printer size={18} /> Imprimir PDF</button>
+           <select 
+             style={{ padding: '0.75rem 1rem', borderRadius: '12px', border: '1px solid #e2e8f0', background: 'white', fontWeight: 700 }}
+             value={selectedUnit}
+             onChange={e => setSelectedUnit(e.target.value)}
+           >
+             <option value="all">Todas las Unidades / Direcciones</option>
+             {units.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+           </select>
+           <button className="btn-secondary" onClick={() => window.print()}><Printer size={18} /> Imprimir Reporte</button>
         </div>
       </header>
 
@@ -123,9 +149,13 @@ const MatrixTable = ({ tasks }) => {
                <div style={{ fontWeight: 700 }}>{t.code}</div>
                <div>{t.name}</div>
             </td>
-            <td style={{ padding: '1rem', border: '1px solid #e2e8f0', textAlign: 'center' }}>
-               <div style={{ fontWeight: 900, color: '#2563eb' }}>{parseFloat(t.avance_fisico || 0).toFixed(1)}%</div>
-               <div style={{ fontSize: '0.6rem', color: '#64748b' }}>{t.is_hitos_mode ? 'Modo Hitos' : 'Temporal'}</div>
+            <td style={{ padding: '1rem', border: '1px solid #e2e8f0', width: '150px' }}>
+               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                 <span style={{ fontWeight: 900, color: '#2563eb' }}>{parseFloat(t.avance_fisico || 0).toFixed(1)}%</span>
+               </div>
+               <div style={{ width: '100%', height: '6px', background: '#f1f5f9', borderRadius: '3px', overflow: 'hidden' }}>
+                 <div style={{ width: `${Math.min(100, (parseFloat(t.avance_fisico || 0) / parseFloat(t.ponderacion_producto || 100)) * 100)}%`, height: '100%', background: '#3b82f6' }} />
+               </div>
             </td>
           </tr>
         ))}
