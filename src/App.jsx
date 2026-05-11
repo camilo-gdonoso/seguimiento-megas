@@ -33,9 +33,9 @@ const Layout = ({ children, user, onLogout }) => {
   const toggleSidebar = () => setIsCollapsed(!isCollapsed);
 
   const menuItems = [
-    { path: '/catalogo', label: 'Matriz de Planificación', icon: <Database size={20} /> },
-    { path: '/segui', label: 'Seguimiento', icon: <Activity size={20} /> },
     { path: '/', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
+    { path: '/segui', label: 'Seguimiento', icon: <Activity size={20} /> },
+    { path: '/catalogo', label: 'Matriz de Planificación', icon: <Database size={20} /> },
     ...(user?.role === 'Admin' ? [
       { path: '/usuarios', label: 'Usuarios', icon: <UsersIcon size={20} /> },
       { path: '/auditoria', label: 'Auditoría', icon: <ShieldCheck size={20} /> },
