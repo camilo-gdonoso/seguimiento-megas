@@ -10,7 +10,7 @@ const API_URL = '/api';
 import * as XLSX from 'xlsx';
 
 const Catalog = ({ user }) => {
-  const [activeTab, setActiveTab] = useState(user?.role === 'Admin' ? 'megas' : 'tareas');
+  const [activeTab, setActiveTab] = useState('tareas'); // Default to the Matrix view for everyone
   const [data, setData] = useState([]);
   const [units, setUnits] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -33,136 +33,7 @@ const Catalog = ({ user }) => {
 
   const [exportYear, setExportYear] = useState(new Date().getFullYear());
 
-  const exportFormularioA = async () => {
-    try {
-      setLoading(true);
-      const resp = await axios.get(`${API_URL}/formulario-a-trimestral?year=${exportYear}`);
-      const rows = resp.data;
-
-      if (!rows || rows.length === 0) {
-        setAlertDialog({ isOpen: true, title: 'Sin datos', message: 'No hay tareas registradas para exportar.', type: 'error' });
-        setLoading(false);
-        return;
-      }
-
-      // ── Group rows by Producto for aggregation ──────────────────────
-      const byProducto = {};
-      rows.forEach(r => {
-        const key = r.producto_id;
-        if (!byProducto[key]) {
-          byProducto[key] = {
-            eje_code: r.eje_code || '',
-            eje_desc: r.eje_desc || '',
-            resultado_code: r.resultado_code || '',
-            resultado_desc: r.resultado_desc || '',
-            estrategia_code: r.estrategia_code || '',
-            mega_code: r.mega_code || '',
-            mega_name: r.mega_name || '',
-            unidad: r.unidad_name || '',
-            producto_name: r.producto_name || '',
-            ponderacion: parseFloat(r.ponderacion_total || 0),
-            avance_total: parseFloat(r.producto_avance || 0),
-            q1: 0, q2: 0, q3: 0, q4: 0,
-            tareas: []
-          };
-        }
-        byProducto[key].q1 += parseFloat(r.q1 || 0);
-        byProducto[key].q2 += parseFloat(r.q2 || 0);
-        byProducto[key].q3 += parseFloat(r.q3 || 0);
-        byProducto[key].q4 += parseFloat(r.q4 || 0);
-        byProducto[key].tareas.push(r.tarea_name);
-      });
-
-      const workbook = XLSX.utils.book_new();
-
-      // ── HOJA 1: Formulario A — Vista por Producto (trimestral) ───────
-      const headerRow = [
-        'Eje Desarrollo',
-        'Código Eje',
-        'Resultado Agenda 50/50',
-        'Código Resultado',
-        'Estrategia N°',
-        'MeGA (Meta al 2030)',
-        'Unidad Responsable',
-        `Producto Intermedio al ${exportYear}`,
-        'Ponderación (%)',
-        'Avance Total Aprobado (%)',
-        `1er Trimestre (Ene-Mar ${exportYear}) %`,
-        `2do Trimestre (Abr-Jun ${exportYear}) %`,
-        `3er Trimestre (Jul-Sep ${exportYear}) %`,
-        `4to Trimestre (Oct-Dic ${exportYear}) %`,
-        'Productos Relevantes Logrados'
-      ];
-
-      const dataRows = Object.values(byProducto).map(p => [
-        p.eje_desc,
-        p.eje_code,
-        p.resultado_desc,
-        p.resultado_code,
-        p.estrategia_code,
-        p.mega_name,
-        p.unidad,
-        p.producto_name,
-        p.ponderacion.toFixed(1),
-        p.avance_total.toFixed(1),
-        p.q1.toFixed(1),
-        p.q2.toFixed(1),
-        p.q3.toFixed(1),
-        p.q4.toFixed(1),
-        p.avance_total >= p.ponderacion ? p.producto_name : ''
-      ]);
-
-      const wsFormA = XLSX.utils.aoa_to_sheet([headerRow, ...dataRows]);
-
-      // Column widths
-      wsFormA['!cols'] = [
-        { wch: 40 }, { wch: 10 }, { wch: 45 }, { wch: 12 }, { wch: 12 },
-        { wch: 50 }, { wch: 30 }, { wch: 50 }, { wch: 12 }, { wch: 16 },
-        { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 55 }
-      ];
-
-      XLSX.utils.book_append_sheet(workbook, wsFormA, `Form A ${exportYear}`);
-
-      // ── HOJA 2: Detalle por Tarea ────────────────────────────────────
-      const taskHeader = [
-        'Eje', 'Resultado', 'Estrategia', 'MeGA', 'Unidad',
-        'Producto Intermedio', 'Tarea de Cumplimiento',
-        'Peso Tarea (%)', 'Responsable',
-        `Q1 (Ene-Mar) %`, `Q2 (Abr-Jun) %`,
-        `Q3 (Jul-Sep) %`, `Q4 (Oct-Dic) %`,
-        'Avance Real Aprobado (%)'
-      ];
-
-      const taskRows = rows.map(r => [
-        r.eje_code || '',
-        r.resultado_code || '',
-        r.estrategia_code || '',
-        r.mega_name || '',
-        r.unidad_name || '',
-        r.producto_name || '',
-        r.tarea_name || '',
-        parseFloat(r.ponderacion_producto || 0).toFixed(1),
-        r.responsable_nombre || '',
-        parseFloat(r.q1 || 0).toFixed(1),
-        parseFloat(r.q2 || 0).toFixed(1),
-        parseFloat(r.q3 || 0).toFixed(1),
-        parseFloat(r.q4 || 0).toFixed(1),
-        parseFloat(r.tarea_avance || 0).toFixed(1)
-      ]);
-
-      const wsDetalle = XLSX.utils.aoa_to_sheet([taskHeader, ...taskRows]);
-      wsDetalle['!cols'] = Array(14).fill({ wch: 25 });
-      XLSX.utils.book_append_sheet(workbook, wsDetalle, 'Detalle por Tarea');
-
-      XLSX.writeFile(workbook, `FormularioA_Trimestral_${exportYear}_${new Date().toISOString().split('T')[0]}.xlsx`);
-      setAlertDialog({ isOpen: true, title: 'Éxito', message: `Formulario A ${exportYear} exportado correctamente (2 hojas).`, type: 'success' });
-    } catch (err) {
-      console.error('Export Error:', err);
-      setAlertDialog({ isOpen: true, title: 'Error', message: 'No se pudo generar el Formulario A.', type: 'error' });
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Export Formulario A Trimestral removed as requested
 
   useEffect(() => {
     if (alertDialog.isOpen) {
@@ -175,7 +46,8 @@ const Catalog = ({ user }) => {
     { id: 'megas', label: 'MeGAs (2030)', icon: Layers, group: 'Operativo' },
     { id: 'productos', label: 'Productos', icon: Database, group: 'Operativo' },
     { id: 'actividades', label: 'Actividades', icon: Layers, group: 'Operativo' },
-    { id: 'tareas', label: 'Tareas', icon: ClipboardCheck, group: 'Operativo' },
+    { id: 'tareas', label: 'Tareas (POA)', icon: ClipboardCheck, group: 'Operativo' },
+    { id: 'tareas_aisladas', label: 'Tareas Aisladas', icon: Shield, group: 'Operativo' },
     { id: 'organigrama', label: 'Estructura', icon: Building, group: 'Base' },
     { id: 'ejes', label: 'Ejes', icon: Database, group: 'Base' },
     { id: 'resultados', label: 'Resultados', icon: Layers, group: 'Base' },
@@ -191,6 +63,7 @@ const Catalog = ({ user }) => {
     'productos': 'productos',
     'actividades': 'actividades',
     'tareas': 'tareas',
+    'tareas_aisladas': 'tareas',
   };
 
   const endpointMap = {
@@ -198,6 +71,7 @@ const Catalog = ({ user }) => {
     'productos': 'productos_detail',
     'actividades': 'actividades_detail',
     'tareas': 'tareas_detail',
+    'tareas_aisladas': 'tareas_detail',
   };
 
   useEffect(() => {
@@ -379,6 +253,10 @@ const Catalog = ({ user }) => {
   };
 
   const filteredData = data.filter(item => {
+    // Tab filtering for Tareas
+    if (activeTab === 'tareas' && item.is_isolated) return false;
+    if (activeTab === 'tareas_aisladas' && !item.is_isolated) return false;
+
     if (!searchTerm) return true;
     const searchLower = searchTerm.toLowerCase();
     const nameMatch = item.name?.toLowerCase().includes(searchLower);
@@ -430,17 +308,6 @@ const Catalog = ({ user }) => {
           <p style={{ color: '#64748b' }}>Parametrización Inicial</p>
         </div>
         <div style={{ display: 'flex', gap: '0.75rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0', border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden', background: 'white' }}>
-            <select
-              value={exportYear}
-              onChange={e => setExportYear(Number(e.target.value))}
-              style={{ padding: '0.6rem 0.75rem', border: 'none', outline: 'none', fontSize: '0.9rem', fontWeight: 700, color: '#475569', background: 'transparent', borderRight: '1px solid #e2e8f0' }}
-            >
-              {[2024, 2025, 2026, 2027, 2028, 2029, 2030].map(y => (
-                <option key={y} value={y}>{y}</option>
-              ))}
-            </select>
-          </div>
           <div style={{ position: 'relative' }}>
             <Search size={16} style={{ position: 'absolute', left: '12px', top: '12px', color: '#94a3b8' }} />
             <input 
@@ -537,7 +404,7 @@ const Catalog = ({ user }) => {
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
               {/* Quick Entry Row */}
-              {isAdmin && activeTab !== 'tareas' && (
+              {isAdmin && activeTab !== 'tareas' && activeTab !== 'tareas_aisladas' && (
                 <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
                   <td style={{ padding: '1rem' }}>
                     <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -630,17 +497,20 @@ const Catalog = ({ user }) => {
                 </tr>
               )}
               <tr style={{ background: '#f1f5f9', borderBottom: '1px solid #e2e8f0' }}>
-                {activeTab === 'tareas' ? (
+                {(activeTab === 'tareas' || activeTab === 'tareas_aisladas') ? (
                   <>
-                    <th style={{ padding: '1rem', fontSize: '0.65rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase', minWidth: '150px' }}>RESULTADOS PROPUESTOS POR LA INSTITUCIÓN AL 2030 (MeGAs)</th>
-                    <th style={{ padding: '1rem', fontSize: '0.65rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase', minWidth: '150px' }}>PRODUCTOS INTERMEDIOS PROPUESTOS POR LA ENTIDAD (100%)</th>
-                    <th style={{ padding: '1rem', fontSize: '0.65rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase', minWidth: '150px' }}>ACTIVIDADES A REALIZAR</th>
-                    <th style={{ padding: '1rem', fontSize: '0.65rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase', minWidth: '150px' }}>TAREAS DE CUMPLIMIENTO</th>
-                    <th style={{ padding: '1rem', fontSize: '0.65rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase' }}>PONDERACIÓN RESPECTO AL PRODUCTO</th>
-                    <th style={{ padding: '1rem', fontSize: '0.65rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase' }}>FECHA DE INICIO</th>
-                    <th style={{ padding: '1rem', fontSize: '0.65rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase' }}>FECHA DE FIN</th>
-                    <th style={{ padding: '1rem', fontSize: '0.65rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase' }}>MEDIO DE VERIFICACIÓN</th>
-                    <th style={{ padding: '1rem', fontSize: '0.65rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase' }}>RESPONSABLES (NOMBRE Y CARGO)</th>
+                    {activeTab === 'tareas' && (
+                        <>
+                            <th style={{ padding: '1rem', fontSize: '0.65rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase', minWidth: '180px' }}>RESULTADOS PROPUESTOS POR LA INSTITUCIÓN AL 2030 (MeGAs)</th>
+                            <th style={{ padding: '1rem', fontSize: '0.65rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase', minWidth: '180px' }}>PRODUCTOS INTERMEDIOS PROPUESTOS POR LA ENTIDAD (100%)</th>
+                            <th style={{ padding: '1rem', fontSize: '0.65rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase', minWidth: '180px' }}>ACTIVIDADES A REALIZAR</th>
+                        </>
+                    )}
+                    <th style={{ padding: '1rem', fontSize: '0.65rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase', minWidth: '180px' }}>{activeTab === 'tareas_aisladas' ? 'TAREAS AISLADAS' : 'TAREAS DE CUMPLIMIENTO'}</th>
+                    <th style={{ textAlign: 'center', padding: '1rem', color: '#475569', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase' }}>PESO (%)</th>
+                    <th style={{ textAlign: 'center', padding: '1rem', color: '#475569', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', minWidth: '110px' }}>INICIO / FIN</th>
+                    <th style={{ textAlign: 'center', padding: '1rem', color: '#475569', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase' }}>MEDIO VERIF.</th>
+                    <th style={{ textAlign: 'left', padding: '1rem', color: '#475569', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase' }}>RESPONSABLE</th>
                   </>
                 ) : (
                    <th style={{ padding: '1.25rem', fontSize: '0.75rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase' }}>CÓDIGO / DESCRIPCIÓN</th>
@@ -664,19 +534,19 @@ const Catalog = ({ user }) => {
                 <tr><td colSpan="15" style={{ padding: '3rem', textAlign: 'center', color: '#64748b' }}>No se encontraron coincidencias</td></tr>
               ) : filteredData.map((item, idx) => (
                 <tr key={item.id} style={{ borderBottom: '1px solid #f1f5f9', fontSize: '0.8rem' }}>
-                  {activeTab === 'tareas' ? (
+                  {(activeTab === 'tareas' || activeTab === 'tareas_aisladas') ? (
                     <>
-                       {rowSpans['mega_name'][idx] > 0 && (
+                       {activeTab === 'tareas' && rowSpans['mega_name'] && rowSpans['mega_name'][idx] > 0 && (
                          <td rowSpan={rowSpans['mega_name'][idx]} style={{ padding: '1.25rem 1rem', color: '#475569', fontWeight: 600, borderRight: '1px solid #f1f5f9', verticalAlign: 'top', background: 'white' }}>
                            {item.mega_code} - {item.mega_name?.substring(0,80)}...
                          </td>
                        )}
-                       {rowSpans['producto_name'][idx] > 0 && (
+                       {activeTab === 'tareas' && rowSpans['producto_name'] && rowSpans['producto_name'][idx] > 0 && (
                          <td rowSpan={rowSpans['producto_name'][idx]} style={{ padding: '1.25rem 1rem', color: '#64748b', borderRight: '1px solid #f1f5f9', verticalAlign: 'top', background: 'white' }}>
                            {item.producto_name?.substring(0,100)}...
                          </td>
                        )}
-                       <td style={{ padding: '1rem', color: '#64748b' }}>{item.actividad_name}</td>
+                       {activeTab === 'tareas' && <td style={{ padding: '1rem', color: '#64748b' }}>{item.actividad_name}</td>}
                     </>
                   ) : (
                     <td style={{ padding: '1.25rem' }}>
@@ -718,22 +588,23 @@ const Catalog = ({ user }) => {
                        {item.producto_name || '---'}
                     </td>
                   )}
-                  {activeTab === 'tareas' && (
+                  {(activeTab === 'tareas' || activeTab === 'tareas_aisladas') && (
                     <>
                       <td style={{ padding: '1rem', color: '#1e293b', fontWeight: 700 }}>
                         <div style={{ display: 'flex', flexDirection: 'column' }}>
-                           <span style={{ fontSize: '0.65rem', color: '#64748b' }}>{item.code}</span>
+                           <span style={{ fontSize: '0.65rem', color: '#64748b' }}>{item.code} {item.is_hitos_mode ? '🎯 (Hitos)' : ''}</span>
                            {item.name}
                         </div>
                       </td>
                       <td style={{ padding: '1rem', color: '#2563eb', fontWeight: 900, textAlign: 'center' }}>
                         {parseFloat(item.ponderacion_producto || 0).toFixed(1)}%
                       </td>
-                      <td style={{ padding: '1rem', color: '#475569', fontWeight: 600 }}>
-                        {item.fecha_inicio ? new Date(item.fecha_inicio).toLocaleDateString() : '---'}
-                      </td>
-                      <td style={{ padding: '1rem', color: '#475569', fontWeight: 600 }}>
-                        {item.fecha_fin ? new Date(item.fecha_fin).toLocaleDateString() : '---'}
+                      <td style={{ padding: '1rem', color: '#475569', fontWeight: 600, textAlign: 'center', fontSize: '0.75rem' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                          <span style={{ color: '#10b981' }}>{item.fecha_inicio ? new Date(item.fecha_inicio).toLocaleDateString() : '---'}</span>
+                          <div style={{ height: '1px', background: '#e2e8f0', width: '20px', margin: '2px auto' }} />
+                          <span style={{ color: '#ef4444' }}>{item.fecha_fin ? new Date(item.fecha_fin).toLocaleDateString() : '---'}</span>
+                        </div>
                       </td>
                       <td style={{ padding: '1rem', color: '#64748b', fontSize: '0.75rem' }}>
                         {item.medio_verificacion || '---'}
@@ -744,6 +615,24 @@ const Catalog = ({ user }) => {
                            <span style={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: 500 }}>{item.responsable_cargo || '---'}</span>
                         </div>
                       </td>
+                      {isAdmin && (
+                        <td style={{ padding: '1rem', borderLeft: '1px solid #f1f5f9' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                            <button 
+                              onClick={() => handleOpenModal(item)}
+                              style={{ padding: '4px', borderRadius: '6px', background: '#eff6ff', color: '#3b82f6', border: 'none', cursor: 'pointer', fontSize: '0.65rem', fontWeight: 800 }}
+                            >
+                              EDITAR TAREA
+                            </button>
+                            <button 
+                              onClick={() => handleDelete(item.id)}
+                              style={{ padding: '4px', borderRadius: '6px', background: '#fef2f2', color: '#ef4444', border: 'none', cursor: 'pointer', fontSize: '0.65rem', fontWeight: 800 }}
+                            >
+                              BORRAR TAREA
+                            </button>
+                          </div>
+                        </td>
+                      )}
                     </>
                   )}
                   {activeTab === 'megas' && (
@@ -812,8 +701,8 @@ const Catalog = ({ user }) => {
                   <FileText size={28} />
                </div>
                <div>
-                 <h2 style={{ fontSize: '1.75rem', fontWeight: 900, color: '#0f172a', margin: 0, lineHeight: 1 }}>{activeTab === 'tareas' ? 'Ficha de Tareas' : 'Nuevo Registro'}</h2>
-                 <p style={{ color: '#64748b', fontSize: '0.85rem', marginTop: '0.3rem', fontWeight: 500 }}>Parametrización detallada de cumplimiento {activeTab === 'tareas' ? 'operativo' : 'estratégico'}</p>
+                 <h2 style={{ fontSize: '1.75rem', fontWeight: 900, color: '#0f172a', margin: 0, lineHeight: 1 }}>{(activeTab === 'tareas' || activeTab === 'tareas_aisladas') ? 'Ficha de Tareas' : 'Nuevo Registro'}</h2>
+                 <p style={{ color: '#64748b', fontSize: '0.85rem', marginTop: '0.3rem', fontWeight: 500 }}>Parametrización detallada de cumplimiento {(activeTab === 'tareas' || activeTab === 'tareas_aisladas') ? 'operativo' : 'estratégico'}</p>
                </div>
             </div>
             
@@ -825,7 +714,7 @@ const Catalog = ({ user }) => {
 
             <form onSubmit={handleSave}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
-                {activeTab !== 'tareas' ? (
+                {(activeTab !== 'tareas' && activeTab !== 'tareas_aisladas') ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
                     <div style={{ display: 'grid', gridTemplateColumns: '150px 1fr', gap: '1.5rem' }}>
                       <div>
@@ -901,15 +790,32 @@ const Catalog = ({ user }) => {
                       </div>
                     </div>
 
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, marginBottom: '0.6rem', color: '#475569' }}>Actividad Padre vinculada</label>
-                      <select required style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '1px solid #cbd5e1', background: '#f8fafc', fontWeight: 600 }} value={formData.actividad_id || ''} onChange={e => setFormData({...formData, actividad_id: e.target.value})}>
-                        <option value="">Seleccionar de la lista de actividades...</option>
-                        {actividades.map(a => (
-                          <option key={a.id} value={a.id}>MeGA: {a.mega_code} / Prod: {a.producto_name?.substring(0,40)}... / Act: {a.name}</option>
-                        ))}
-                      </select>
+                    <div style={{ display: 'flex', gap: '2rem', padding: '1rem', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, cursor: 'pointer' }}>
+                        <input type="checkbox" style={{ transform: 'scale(1.2)' }} checked={formData.is_isolated || false} onChange={e => {
+                          setFormData({...formData, is_isolated: e.target.checked, actividad_id: e.target.checked ? null : formData.actividad_id});
+                        }} />
+                        Es Tarea Aislada (No POA)
+                      </label>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, cursor: 'pointer' }}>
+                        <input type="checkbox" style={{ transform: 'scale(1.2)' }} checked={formData.is_hitos_mode || false} onChange={e => {
+                          setFormData({...formData, is_hitos_mode: e.target.checked});
+                        }} />
+                        Medición por Hitos (No Temporal)
+                      </label>
                     </div>
+
+                    {!formData.is_isolated && (
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, marginBottom: '0.6rem', color: '#475569' }}>Actividad Padre vinculada</label>
+                        <select required={!formData.is_isolated} style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '1px solid #cbd5e1', background: '#f8fafc', fontWeight: 600 }} value={formData.actividad_id || ''} onChange={e => setFormData({...formData, actividad_id: e.target.value})}>
+                          <option value="">Seleccionar de la lista de actividades...</option>
+                          {actividades.map(a => (
+                            <option key={a.id} value={a.id}>MeGA: {a.mega_code} / Prod: {a.producto_name?.substring(0,40)}... / Act: {a.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1.5rem' }}>
                       <div>
@@ -938,24 +844,32 @@ const Catalog = ({ user }) => {
                       </div>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '1.5rem' }}>
+                    {formData.is_hitos_mode ? (
                       <div>
-                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, marginBottom: '0.6rem', color: '#475569' }}>Tipo de Avance</label>
-                        <select style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '1px solid #cbd5e1' }} value={formData.tipo_avance || 'Semanal'} onChange={e => {
-                          const nd = {...formData, tipo_avance: e.target.value};
-                          if (formData.planograma) generatePlanograma(nd); else setFormData(nd);
-                        }}>
-                          <option value="Semanal">Semanal (Recomendado)</option>
-                          <option value="Diario">Diario</option>
-                        </select>
+                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, marginBottom: '0.6rem', color: '#475569' }}>Total de Hitos (Cantidad numérica a cumplir)</label>
+                        <input type="number" required={formData.is_hitos_mode} min="1" placeholder="Ej: 5" style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '1px solid #cbd5e1', fontWeight: 900, color: '#10b981' }} value={formData.hitos_total || ''} onChange={e => setFormData({...formData, hitos_total: parseInt(e.target.value) || 0})} />
                       </div>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, marginBottom: '0.6rem', color: '#475569' }}>Medio de Verificación</label>
-                        <input placeholder="Ej: Link Google Drive, Informe..." style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '1px solid #cbd5e1' }} value={formData.medio_verificacion || ''} onChange={e => setFormData({...formData, medio_verificacion: e.target.value})} />
+                    ) : (
+                      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '1.5rem' }}>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, marginBottom: '0.6rem', color: '#475569' }}>Tipo de Avance</label>
+                          <select style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '1px solid #cbd5e1' }} value={formData.tipo_avance || 'Semanal'} onChange={e => {
+                            const nd = {...formData, tipo_avance: e.target.value};
+                            if (formData.planograma) generatePlanograma(nd); else setFormData(nd);
+                          }}>
+                            <option value="Semanal">Semanal (Recomendado)</option>
+                            <option value="Diario">Diario</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, marginBottom: '0.6rem', color: '#475569' }}>Medio de Verificación</label>
+                          <input placeholder="Ej: Link Google Drive, Informe..." style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '1px solid #cbd5e1' }} value={formData.medio_verificacion || ''} onChange={e => setFormData({...formData, medio_verificacion: e.target.value})} />
+                        </div>
                       </div>
-                    </div>
+                    )}
 
-                    <div style={{ background: '#f8fafc', padding: '1.5rem', borderRadius: '24px', border: '1px solid #e2e8f0' }}>
+                    {!formData.is_hitos_mode && (
+                      <div style={{ background: '#f8fafc', padding: '1.5rem', borderRadius: '24px', border: '1px solid #e2e8f0' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                         <h4 style={{ fontSize: '1rem', fontWeight: 800, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                           <LayoutGrid size={20} color="#3b82f6" /> Cronograma de Planificación
@@ -980,6 +894,7 @@ const Catalog = ({ user }) => {
                          </div>
                       )}
                     </div>
+                    )}
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
                       <div>

@@ -62,8 +62,8 @@ const Dashboard = ({ user }) => {
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
       <header style={{ marginBottom: '2.5rem' }}>
-        <h1 className="hero-title">Reporte de Cumplimiento Estratégico</h1>
-        <p style={{ color: '#64748b' }}>Seguimiento en tiempo real de los Resultados MeGAs 2026-2030</p>
+        <h1 className="hero-title">Reporte de Cumplimiento</h1>
+        <p style={{ color: '#64748b', fontWeight: 500 }}>Seguimiento en tiempo real de los Resultados MeGAs 2026-2030</p>
       </header>
 
       {/* ── KPI Cards ───────────────────────────────────────────────── */}
@@ -168,28 +168,6 @@ const Dashboard = ({ user }) => {
             </div>
           </div>
 
-          {/* N3: Progress by Funcionario */}
-          <div className="glass-card" style={{ padding: '2rem' }}>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <CheckCircle size={20} color="#059669" /> Productividad por Funcionario
-            </h3>
-            <div style={{ display: 'table', width: '100%' }}>
-              {(stats.users || []).map(u => (
-                <div key={u.name} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', borderBottom: '1px solid #f1f5f9' }}>
-                  <div style={{ flex: 1 }}>
-                    <p style={{ fontSize: '0.85rem', fontWeight: 700, margin: 0 }}>{u.name || 'Sin asignar'}</p>
-                    <p style={{ fontSize: '0.7rem', color: '#64748b', margin: 0 }}>{u.tasks} tareas asignadas</p>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <span style={{ fontSize: '0.9rem', fontWeight: 800, color: parseFloat(u.progress) > 80 ? '#059669' : '#475569' }}>
-                      {u.progress}%
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
           {/* Semaphore distribution */}
           <div className="glass-card" style={{ padding: '2rem' }}>
             <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -226,6 +204,26 @@ const Dashboard = ({ user }) => {
                   <div key={i} style={{ width: `${(s.v / total) * 100}%`, background: s.c }} />
                 ));
               })()}
+            </div>
+          </div>
+
+          {/* Top 5 Delayed Tasks */}
+          <div className="glass-card" style={{ padding: '2rem' }}>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <AlertTriangle size={20} color="#ef4444" /> Top 5 Tareas Críticas (Retraso)
+            </h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              {stats.delayed_tasks && stats.delayed_tasks.length > 0 ? stats.delayed_tasks.map(t => (
+                <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '0.75rem', background: '#fee2e2', borderRadius: '12px', border: '1px solid #fecaca' }}>
+                  <div style={{ padding: '0.5rem', background: '#fef2f2', borderRadius: '8px', color: '#dc2626', fontWeight: 900, textAlign: 'center', minWidth: '40px' }}>
+                    {t.dias_retraso}d
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ fontSize: '0.85rem', fontWeight: 800, color: '#991b1b', margin: 0, lineHeight: 1.2 }}>{t.name?.substring(0, 50)}...</p>
+                    <p style={{ fontSize: '0.7rem', color: '#b91c1c', margin: '0.2rem 0 0', fontWeight: 600 }}>{t.responsable_nombre || 'Sin asignar'}</p>
+                  </div>
+                </div>
+              )) : <p style={{ color: '#94a3b8', fontSize: '0.85rem', fontStyle: 'italic' }}>No hay tareas retrasadas.</p>}
             </div>
           </div>
         </div>

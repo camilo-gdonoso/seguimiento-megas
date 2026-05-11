@@ -1,20 +1,16 @@
 import React from 'react';
 import {
     LayoutDashboard,
-    Hammer,
-    Box,
-    FileText,
+    Layers,
+    Activity,
     BarChart3,
-    BookOpen,
+    HelpCircle,
     Users,
-    ShoppingCart,
-    History,
-    ExternalLink,
+    Shield,
     LogOut,
-    Mail,
-    TrendingDown,
     X,
-    Shield
+    ChevronLeft,
+    ChevronRight
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
@@ -22,35 +18,24 @@ const Sidebar = () => {
     const { activeView, setActiveView, activeRole, setActiveRole, user, logout, isSidebarOpen, setIsSidebarOpen } = useApp();
 
     const menuItems = [
-        { id: 'dashboard', label: 'Monitor de Negocio', icon: <LayoutDashboard size={20} />, section: 'Módulos de Gestión' },
-        { id: 'projects', label: 'Orden de Trabajo', icon: <Hammer size={20} />, section: 'Módulos de Gestión' },
-        { id: 'leads', label: 'Prospectos / Leads', icon: <Mail size={20} />, section: 'Módulos de Gestión', status: 'PREMIUM' },
-        { id: 'inventory', label: 'Control de Inventario', icon: <Box size={20} />, section: 'Módulos de Gestión' },
-        { id: 'purchases', label: 'Órdenes de Compra', icon: <FileText size={20} />, section: 'Módulos de Gestión' },
-        { id: 'reports', label: 'Reportes y Resumen', icon: <BarChart3 size={20} />, section: 'Análisis y Equipo' },
-        { id: 'tech-doc', label: 'Manual de Usuario', icon: <BookOpen size={20} />, section: 'Análisis y Equipo' },
-        { id: 'personnel', label: 'Planilla de Personal', icon: <Users size={20} />, section: 'Análisis y Equipo' },
-        { id: 'personal', label: 'Accesos y Roles (ERP)', icon: <Shield size={20} />, section: 'Análisis y Equipo' },
-        { id: 'customers', label: 'Gestión de Clientes', icon: <Users size={20} />, section: 'Análisis y Equipo' },
-        { id: 'pos', label: 'Caja / Punto de Venta', icon: <ShoppingCart size={20} />, section: 'Finanzas y Caja' },
-        { id: 'sales', label: 'Historial de Ventas', icon: <History size={20} />, section: 'Finanzas y Caja' },
-        { id: 'expenses', label: 'Gestión de Egresos', icon: <TrendingDown size={20} />, section: 'Finanzas y Caja' },
+        { id: 'megas', label: 'MeGAs', icon: <Layers size={20} />, section: 'Menú' },
+        { id: 'monitoring', label: 'Seguimiento', icon: <Activity size={20} />, section: 'Menú' },
+        { id: 'dashboard', label: 'Reporte', icon: <BarChart3 size={20} />, section: 'Menú' },
+        { id: 'users', label: 'Usuarios', icon: <Users size={20} />, section: 'Administración' },
+        { id: 'audit', label: 'Auditoría', icon: <Shield size={20} />, section: 'Administración' },
+        { id: 'help', label: 'Ayuda', icon: <HelpCircle size={20} />, section: 'Menú' },
     ];
 
     const rolePermissions = {
-        'Dueno': ['dashboard', 'projects', 'inventory', 'purchases', 'reports', 'tech-doc', 'personal', 'personnel', 'pos', 'sales', 'expenses', 'leads', 'customers'],
-        'Vendedor': ['pos', 'inventory', 'sales', 'projects'],
-        'Almacen': ['inventory', 'purchases'],
-        'Produccion': ['projects'],
-        'Contador': ['reports', 'sales', 'expenses', 'customers']
+        'Admin': ['megas', 'monitoring', 'dashboard', 'users', 'audit', 'help'],
+        'Director': ['megas', 'monitoring', 'dashboard', 'help'],
+        'Tecnico': ['megas', 'monitoring', 'help']
     };
 
     const roleLabels = {
-        'Dueno': 'Dueño / Gerente',
-        'Vendedor': 'Vendedor / Cajero',
-        'Almacen': 'Encargado de Almacén',
-        'Produccion': 'Personal de Producción',
-        'Contador': 'Contador (Solo Lectura)'
+        'Admin': 'Administrador MeGAs',
+        'Director': 'Director General',
+        'Tecnico': 'Técnico / Operador'
     };
 
     const visibleItems = menuItems.filter(item => rolePermissions[activeRole]?.includes(item.id));
@@ -64,8 +49,13 @@ const Sidebar = () => {
             />
             <aside className={`sidebar ${isSidebarOpen ? 'open' : ''}`}>
                 <div className="sidebar-header">
-                    <div className="logo-circle">I</div>
-                    <h1>Infrabol<span>ERP</span></h1>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <img src="/logo_ministerioa_trabajo.png" alt="Logo" style={{ height: '32px' }} />
+                        <div>
+                            <h1 style={{ fontSize: '1.1rem', fontWeight: 900, color: 'white', margin: 0 }}>SISTEMA <span style={{ color: 'var(--primary)' }}>MeGAs</span></h1>
+                            <p style={{ fontSize: '0.55rem', opacity: 0.6, margin: 0, fontWeight: 600, color: '#94a3b8' }}>Caminando hacia la Agenda 50/50</p>
+                        </div>
+                    </div>
                     <button className="mobile-close" onClick={() => setIsSidebarOpen(false)}>
                         <X size={24} />
                     </button>
@@ -74,7 +64,7 @@ const Sidebar = () => {
                 <nav className="nav-menu">
                     {sections.map(section => (
                         <React.Fragment key={section}>
-                            <div className="nav-label">{section}</div>
+                            <div className="nav-label">{section === 'Menú' ? 'Navegación' : section}</div>
                             {visibleItems.filter(item => item.section === section).map(item => (
                                 <button
                                     key={item.id}
@@ -86,20 +76,6 @@ const Sidebar = () => {
                                 >
                                     <span className="icon">{item.icon}</span>
                                     {item.label}
-                                    {item.status === 'PREMIUM' && (
-                                        <span style={{
-                                            fontSize: '0.6rem',
-                                            marginLeft: 'auto',
-                                            padding: '2px 8px',
-                                            background: 'linear-gradient(135deg, #fbbf24, #f59e0b)',
-                                            color: '#78350f',
-                                            borderRadius: '6px',
-                                            fontWeight: 900,
-                                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                                        }}>
-                                            PREMIUM
-                                        </span>
-                                    )}
                                 </button>
                             ))}
                         </React.Fragment>
@@ -107,19 +83,6 @@ const Sidebar = () => {
                 </nav>
 
                 <div className="sidebar-footer">
-                    <div style={{ padding: '0 0.5rem', marginBottom: '1.5rem', borderLeft: '2px solid var(--primary)' }}>
-                        <p style={{ fontSize: '0.65rem', textTransform: 'uppercase', opacity: 0.6, letterSpacing: '1px' }}>Potenciado por</p>
-                        <p style={{ fontSize: '0.85rem', fontWeight: 900, color: 'white' }}>Kallpatech <span style={{ color: 'var(--primary)' }}>Solutions</span></p>
-                        <p style={{ fontSize: '0.6rem', marginTop: '6px', opacity: 0.5, color: '#f8fafc' }}>
-                            {window.location.hostname.includes('onrender.com') ? '🟢 Gestión en la NUBE' : '🏠 Gestión Local'} — Santa Cruz, Bolivia, 2026
-                        </p>
-                    </div>
-
-                    <a href="catalog.html" className="catalog-link" target="_blank" rel="noreferrer">
-                        <ExternalLink size={16} />
-                        <span>Ver Catálogo Público</span>
-                    </a>
-
                     <div
                         className="user-pill"
                         style={{
@@ -142,29 +105,34 @@ const Sidebar = () => {
                             style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', flex: 1 }}
                             title="Cambiar rol (Demo)"
                         >
-                            <div className="avatar" style={{ width: '36px', height: '36px' }}>{activeRole ? activeRole[0] : 'U'}</div>
+                            <div className="avatar" style={{ width: '36px', height: '36px', background: 'var(--primary)', color: 'white', fontWeight: 900 }}>{activeRole ? activeRole[0] : 'U'}</div>
                             <div className="user-info">
-                                <p className="user-name" style={{ fontSize: '0.9rem', fontWeight: 800, color: 'white' }}>{user?.fullname || user?.username || 'Usuario'}</p>
-                                <p className="user-role" style={{ fontSize: '0.7rem', opacity: 0.6, color: '#94a3b8' }}>{roleLabels[activeRole] || activeRole}</p>
+                                <p className="user-name" style={{ fontSize: '0.85rem', fontWeight: 800, color: 'white' }}>{user?.fullname || user?.username || 'Usuario'}</p>
+                                <p className="user-role" style={{ fontSize: '0.65rem', opacity: 0.6, color: '#94a3b8' }}>{user?.cargo || roleLabels[activeRole] || activeRole}</p>
                             </div>
                         </div>
                         <button
                             onClick={logout}
                             style={{
-                                background: '#ef4444',
+                                background: 'rgba(239, 68, 68, 0.15)',
                                 border: 'none',
-                                color: 'white',
+                                color: '#ef4444',
                                 cursor: 'pointer',
                                 padding: '8px',
                                 borderRadius: '10px',
                                 display: 'flex',
                                 alignItems: 'center',
-                                boxShadow: '0 4px 6px rgba(239, 68, 68, 0.2)'
+                                transition: 'all 0.2s'
                             }}
                             title="Cerrar Sesión"
                         >
                             <LogOut size={18} />
                         </button>
+                    </div>
+                    
+                    <div style={{ marginTop: '1.25rem', padding: '0 0.5rem', opacity: 0.4 }}>
+                        <p style={{ fontSize: '0.55rem', margin: 0 }}>© 2026 MTEPS</p>
+                        <p style={{ fontSize: '0.55rem', margin: 0 }}>Ministerio de Trabajo, Empleo y Previsión Social</p>
                     </div>
                 </div>
             </aside>

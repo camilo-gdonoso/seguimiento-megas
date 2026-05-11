@@ -2,12 +2,33 @@ const express = require('express');
 const { Pool } = require('pg');
 const cors = require('cors');
 require('dotenv').config();
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+
+// Ensure uploads directory exists
+const uploadDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadDir)){
+    fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, uploadDir)
+    },
+    filename: function (req, file, cb) {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9)
+        cb(null, uniqueSuffix + path.extname(file.originalname))
+    }
+});
+const upload = multer({ storage: storage });
 
 const app = express();
 const port = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Middleware for Vercel initialization - MUST BE AT THE TOP
 let isDbInitialized = false;
@@ -93,8 +114,11 @@ const initDb = async () => {
             ALTER TABLE megas ADD COLUMN IF NOT EXISTS fecha_fin DATE;
             ALTER TABLE productos_intermedios ADD COLUMN IF NOT EXISTS fecha_inicio DATE;
             ALTER TABLE productos_intermedios ADD COLUMN IF NOT EXISTS fecha_fin DATE;
-            ALTER TABLE actividades ADD COLUMN IF NOT EXISTS fecha_inicio DATE;
             ALTER TABLE actividades ADD COLUMN IF NOT EXISTS fecha_fin DATE;
+            ALTER TABLE tareas ADD COLUMN IF NOT EXISTS is_isolated BOOLEAN DEFAULT FALSE;
+            ALTER TABLE tareas ADD COLUMN IF NOT EXISTS is_hitos_mode BOOLEAN DEFAULT FALSE;
+            ALTER TABLE tareas ADD COLUMN IF NOT EXISTS hitos_total INTEGER DEFAULT 0;
+            ALTER TABLE tareas ADD COLUMN IF NOT EXISTS hitos_completados INTEGER DEFAULT 0;
         `);
         await pool.query(`CREATE TABLE IF NOT EXISTS tareas (
             id SERIAL PRIMARY KEY, 
@@ -116,7 +140,11 @@ const initDb = async () => {
             planograma JSONB,
             indicador TEXT,
             resultado_esperado TEXT,
-            vinculada_poa VARCHAR(10) DEFAULT 'NO'
+            vinculada_poa VARCHAR(10) DEFAULT 'NO',
+            is_isolated BOOLEAN DEFAULT FALSE,
+            is_hitos_mode BOOLEAN DEFAULT FALSE,
+            hitos_total INTEGER DEFAULT 0,
+            hitos_completados INTEGER DEFAULT 0
         )`);
         await pool.query('CREATE TABLE IF NOT EXISTS avances_semanales (id SERIAL PRIMARY KEY, tarea_id INTEGER REFERENCES tareas(id) ON DELETE CASCADE, semana INTEGER NOT NULL, avance_real DECIMAL(5,2) DEFAULT 0.00, observacion TEXT, evidencia_url TEXT, estado VARCHAR(20) DEFAULT \'Reportado\', UNIQUE(tarea_id, semana))');
         await pool.query('CREATE TABLE IF NOT EXISTS auditoria (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES usuarios(id) ON DELETE SET NULL, action TEXT NOT NULL, table_name TEXT NOT NULL, record_id INTEGER, old_data JSONB, new_data JSONB, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)');
@@ -173,6 +201,7 @@ const initDb = async () => {
 
 
 const validateFechasTarea = async (actividadId, fInicio, fFin) => {
+    if (!actividadId) return;
     if (!fInicio && !fFin) return;
     const { rows } = await pool.query(`
         SELECT m.fecha_inicio as m_inicio, m.fecha_fin as m_fin, m.code as m_code 
@@ -325,9 +354,9 @@ app.get('/api/tareas_detail', async (req, res) => {
         const result = await pool.query(`
             SELECT t.*, a.name as actividad_name, a.code as actividad_code, p.name as producto_name, p.code as producto_code, m.name as mega_name, m.code as mega_code 
             FROM tareas t 
-            JOIN actividades a ON t.actividad_id = a.id 
-            JOIN productos_intermedios p ON a.producto_id = p.id 
-            JOIN megas m ON p.mega_id = m.id 
+            LEFT JOIN actividades a ON t.actividad_id = a.id 
+            LEFT JOIN productos_intermedios p ON a.producto_id = p.id 
+            LEFT JOIN megas m ON p.mega_id = m.id 
             ORDER BY t.id ASC
         `);
         res.json(result.rows);
@@ -351,25 +380,29 @@ app.post('/api/productos', async (req, res) => {
 // Recalculate progress chain only summing approved weekly updates
 const updateProgressChain = async (tareaId) => {
     try {
-        // 1. Update Tarea (only approved updates)
+        // 1. Update Tarea (only approved updates or hitos)
         await pool.query(`
             UPDATE tareas 
-            SET avance_fisico = (
-                SELECT LEAST(COALESCE(SUM(avance_real), 0), ponderacion_producto) 
-                FROM avances_semanales 
-                WHERE tarea_id = $1 AND estado = 'Aprobado'
-            ) 
+            SET avance_fisico = 
+                CASE 
+                    WHEN is_hitos_mode = TRUE AND hitos_total > 0 THEN 
+                        LEAST((hitos_completados::numeric / hitos_total::numeric) * ponderacion_producto, ponderacion_producto)
+                    ELSE 
+                        (SELECT LEAST(COALESCE(SUM(avance_real), 0), ponderacion_producto) 
+                         FROM avances_semanales 
+                         WHERE tarea_id = $1 AND estado = 'Aprobado')
+                END
             WHERE id = $1`, [tareaId]);
 
         // 2. Identify parents
         const tareaInfo = await pool.query(`
-            SELECT a.producto_id, prod.mega_id 
+            SELECT a.producto_id, prod.mega_id, t.is_isolated 
             FROM tareas t 
-            JOIN actividades a ON t.actividad_id = a.id 
-            JOIN productos_intermedios prod ON a.producto_id = prod.id 
+            LEFT JOIN actividades a ON t.actividad_id = a.id 
+            LEFT JOIN productos_intermedios prod ON a.producto_id = prod.id 
             WHERE t.id = $1`, [tareaId]);
 
-        if (tareaInfo.rows.length > 0) {
+        if (tareaInfo.rows.length > 0 && !tareaInfo.rows[0].is_isolated) {
             const { producto_id, mega_id } = tareaInfo.rows[0];
 
             // 3. Update Producto Intermedio (SUM of its Tasks)
@@ -439,6 +472,11 @@ app.get('/api/seguimiento/formulario1', async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+app.post('/api/upload', upload.single('evidencia'), (req, res) => {
+    if (!req.file) return res.status(400).json({ error: 'No se subió ningún archivo.' });
+    res.json({ url: `/uploads/${req.file.filename}` });
+});
+
 app.post('/api/avances-semanales', async (req, res) => {
     const { tarea_id, semana, avance_real, observacion, evidencia_url } = req.body;
     try {
@@ -475,35 +513,40 @@ app.post('/api/tareas', async (req, res) => {
     const {
         actividad_id, name, ponderacion_producto, responsable_nombre, responsable_cargo,
         medio_verificacion, fecha_inicio, fecha_fin, user_id, director_id, code,
-        tipo_avance, planograma, indicador, resultado_esperado, vinculada_poa
+        tipo_avance, planograma, indicador, resultado_esperado, vinculada_poa,
+        is_isolated, is_hitos_mode, hitos_total
     } = req.body;
     try {
-        await validateFechasTarea(actividad_id, fecha_inicio, fecha_fin);
+        if (!is_isolated) {
+            await validateFechasTarea(actividad_id, fecha_inicio, fecha_fin);
 
-        const actInfo = await pool.query('SELECT producto_id FROM actividades WHERE id = $1', [actividad_id]);
-        if (actInfo.rows.length === 0) return res.status(400).json({ error: 'Actividad no encontrada' });
+            const actInfo = await pool.query('SELECT producto_id FROM actividades WHERE id = $1', [actividad_id]);
+            if (actInfo.rows.length === 0) return res.status(400).json({ error: 'Actividad no encontrada' });
 
-        const prodId = actInfo.rows[0].producto_id;
-        const currentSumRes = await pool.query(`
-            SELECT SUM(t.ponderacion_producto) as total 
-            FROM tareas t 
-            JOIN actividades a ON t.actividad_id = a.id 
-            WHERE a.producto_id = $1`, [prodId]);
-        const currentTotal = parseFloat(currentSumRes.rows[0].total || 0);
-        if (currentTotal + parseFloat(ponderacion_producto) > 100.01) {
-            return res.status(400).json({ error: 'La ponderación total de las tareas para este producto ya alcanzó o excede el 100%' });
+            const prodId = actInfo.rows[0].producto_id;
+            const currentSumRes = await pool.query(`
+                SELECT SUM(t.ponderacion_producto) as total 
+                FROM tareas t 
+                JOIN actividades a ON t.actividad_id = a.id 
+                WHERE a.producto_id = $1 AND t.is_isolated = FALSE`, [prodId]);
+            const currentTotal = parseFloat(currentSumRes.rows[0].total || 0);
+            if (currentTotal + parseFloat(ponderacion_producto || 0) > 100.01) {
+                return res.status(400).json({ error: 'La ponderación total de las tareas para este producto ya alcanzó o excede el 100%' });
+            }
         }
         const result = await pool.query(
             `INSERT INTO tareas (
                 actividad_id, name, ponderacion_producto, responsable_nombre, responsable_cargo, 
                 medio_verificacion, fecha_inicio, fecha_fin, user_id, director_id, code, 
-                tipo_avance, planograma, indicador, resultado_esperado, vinculada_poa
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING *`,
+                tipo_avance, planograma, indicador, resultado_esperado, vinculada_poa,
+                is_isolated, is_hitos_mode, hitos_total
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19) RETURNING *`,
             [
-                actividad_id, name, ponderacion_producto, responsable_nombre, responsable_cargo,
+                is_isolated ? null : actividad_id, name, is_isolated ? 0 : ponderacion_producto, responsable_nombre, responsable_cargo,
                 medio_verificacion, fecha_inicio, fecha_fin, user_id, director_id, code,
                 tipo_avance || 'Semanal', planograma ? JSON.stringify(planograma) : null,
-                indicador, resultado_esperado, vinculada_poa || 'NO'
+                indicador, resultado_esperado, vinculada_poa || 'NO',
+                is_isolated || false, is_hitos_mode || false, hitos_total || 0
             ]
         );
         res.status(201).json(result.rows[0]);
@@ -559,7 +602,15 @@ app.get('/api/dashboard-stats', async (req, res) => {
         }
 
         const megasProgress = await pool.query(`SELECT m.code, m.name, m.avance_fisico as progress FROM megas m ${megaFilter} ORDER BY m.avance_fisico DESC LIMIT 8`);
-        const globalProgress = await pool.query(`SELECT COALESCE(AVG(m.avance_fisico), 0) as global FROM megas m ${megaFilter}`);
+        const globalProgress = await pool.query(`
+            SELECT (
+                COALESCE((SELECT SUM(m.avance_fisico) FROM megas m ${megaFilter}), 0) + 
+                COALESCE((SELECT SUM(t.avance_fisico) FROM tareas t WHERE t.is_isolated = TRUE ${role === 'Tecnico' ? 'AND t.user_id = ' + safeUserId : ''}), 0)
+            ) / NULLIF(
+                (SELECT COUNT(*) FROM megas m ${megaFilter}) + 
+                (SELECT COUNT(*) FROM tareas t WHERE t.is_isolated = TRUE ${role === 'Tecnico' ? 'AND t.user_id = ' + safeUserId : ''}), 0
+            ) as global
+        `);
 
         const semaphores = await pool.query(`
             SELECT 
@@ -570,18 +621,34 @@ app.get('/api/dashboard-stats', async (req, res) => {
             FROM (
                 SELECT 
                     CASE 
-                        WHEN avance_fisico >= ponderacion_producto AND EXISTS (
-                            SELECT 1 FROM avances_semanales 
-                            WHERE tarea_id = t.id AND estado = 'Aprobado' AND evidencia_url IS NOT NULL AND evidencia_url != ''
-                        ) THEN 'Terminado'
-                        WHEN fecha_fin < CURRENT_DATE AND (avance_fisico < ponderacion_producto OR avance_fisico IS NULL) THEN 'Retrasado'
-                        WHEN CURRENT_DATE BETWEEN fecha_inicio AND fecha_fin AND avance_fisico > 0 THEN 'En Proceso'
+                        WHEN (is_hitos_mode = TRUE AND hitos_completados >= hitos_total AND hitos_total > 0) OR
+                             (is_hitos_mode = FALSE AND avance_fisico >= ponderacion_producto AND EXISTS (
+                                SELECT 1 FROM avances_semanales 
+                                WHERE tarea_id = t.id AND estado = 'Aprobado' AND evidencia_url IS NOT NULL AND evidencia_url != ''
+                            )) THEN 'Terminado'
+                        WHEN fecha_fin < CURRENT_DATE AND 
+                             ((is_hitos_mode = TRUE AND hitos_completados < hitos_total) OR 
+                              (is_hitos_mode = FALSE AND (avance_fisico < ponderacion_producto OR avance_fisico IS NULL))) THEN 'Retrasado'
+                        WHEN CURRENT_DATE BETWEEN fecha_inicio AND fecha_fin AND 
+                             ((is_hitos_mode = TRUE AND hitos_completados > 0) OR 
+                              (is_hitos_mode = FALSE AND avance_fisico > 0)) THEN 'En Proceso'
                         WHEN fecha_inicio > CURRENT_DATE THEN 'Pendiente'
                         ELSE 'En Proceso'
                     END as estado_calculado
                 FROM tareas t
                 ${taskFilter}
             ) t
+        `);
+
+        // Delayed tasks list (Top 5)
+        const delayedTasks = await pool.query(`
+            SELECT id, name, fecha_fin, responsable_nombre,
+                   CURRENT_DATE - fecha_fin as dias_retraso
+            FROM tareas t
+            ${taskFilter ? taskFilter + ' AND' : 'WHERE'} fecha_fin < CURRENT_DATE
+            AND ((is_hitos_mode = TRUE AND hitos_completados < hitos_total) OR (is_hitos_mode = FALSE AND (avance_fisico < ponderacion_producto OR avance_fisico IS NULL)))
+            ORDER BY dias_retraso DESC
+            LIMIT 5
         `);
 
         const unitsProgress = await pool.query(`
@@ -653,6 +720,7 @@ app.get('/api/dashboard-stats', async (req, res) => {
         res.json({
             global: parseFloat(globalProgress.rows[0]?.global || 0).toFixed(1),
             semaphores: semaphores.rows[0],
+            delayed_tasks: delayedTasks.rows,
             megas: megasProgress.rows.map(m => ({
                 code: m.code,
                 name: m.name,
@@ -939,6 +1007,7 @@ if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL) {
         });
     });
 }
+
 
 module.exports = app;
 module.exports.app = app;

@@ -44,7 +44,7 @@ const Monitoring = ({ user }) => {
   // Custom Modals States
   const [alertDialog, setAlertDialog] = useState({ isOpen: false, title: '', message: '', type: 'info' });
   const [obsDialog, setObsDialog] = useState({ isOpen: false, tareaId: null, semana: null, text: '' });
-  const [reportDialog, setReportDialog] = useState({ isOpen: false, tareaId: null, semana: null, progress: 0, evidence: '', obs: '', rowName: '' });
+  const [reportDialog, setReportDialog] = useState({ isOpen: false, tareaId: null, semana: null, progress: 0, evidence: '', obs: '', rowName: '', isUploading: false });
 
   const exportToExcel = () => {
     try {
@@ -156,6 +156,28 @@ const Monitoring = ({ user }) => {
     }
   };
 
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    setReportDialog({ ...reportDialog, isUploading: true });
+    
+    const formData = new FormData();
+    formData.append('evidencia', file);
+    
+    try {
+      const res = await axios.post(`${API_URL}/upload`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data', 'x-user-id': user?.id }
+      });
+      setReportDialog({ ...reportDialog, evidence: res.data.url, isUploading: false });
+      setAlertDialog({ isOpen: true, title: 'Archivo Subido', message: 'Evidencia adjuntada correctamente.', type: 'success' });
+    } catch (err) {
+      console.error(err);
+      setReportDialog({ ...reportDialog, isUploading: false });
+      setAlertDialog({ isOpen: true, title: 'Error', message: 'No se pudo subir el archivo.', type: 'error' });
+    }
+  };
+
   const handleSaveModal = async (e) => {
     e.preventDefault();
     try {
@@ -243,7 +265,7 @@ const Monitoring = ({ user }) => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '3rem' }}>
         <div>
           <h1 style={{ fontSize: '2.5rem', fontWeight: 900, color: '#0f172a', letterSpacing: '-0.04em', lineHeight: 1.1 }}>
-            Seguimiento de <span style={{ color: '#2563eb' }}>Actividades</span>
+            Seguimiento <span style={{ color: '#2563eb' }}>Actividades</span>
           </h1>
           <p style={{ color: '#64748b', marginTop: '0.75rem', fontSize: '1.1rem', fontWeight: 500, maxWidth: '600px' }}>
             Panel de control avanzado para el monitoreo del cumplimiento de productos intermedios y MeGAs institucionales.
@@ -257,14 +279,14 @@ const Monitoring = ({ user }) => {
               alignItems: 'center', 
               gap: '0.6rem', 
               background: 'white', 
-              color: '#2563eb', 
-              border: '2px solid #2563eb',
+              color: '#10b981', 
+              border: '2px solid #10b981',
               padding: '0.75rem 1.25rem',
-              boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.1)'
+              boxShadow: '0 4px 6px -1px rgba(16, 185, 129, 0.1)'
             }}
             onClick={exportToExcel}
           >
-            <FileText size={20} /> Exportar Excel
+            <FileText size={20} /> Exportar Reporte
           </button>
         </div>
       </div>
@@ -322,11 +344,11 @@ const Monitoring = ({ user }) => {
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
-              <tr style={{ background: '#f8fafc', borderBottom: '2px solid #f1f5f9' }}>
-                <th style={{ padding: '1rem', fontSize: '0.65rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase', minWidth: '150px' }}>MeGAs (2030)</th>
-                <th style={{ padding: '1rem', fontSize: '0.65rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase', minWidth: '150px' }}>PRODUCTOS (100%)</th>
-                <th style={{ padding: '1rem', fontSize: '0.65rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase', minWidth: '150px' }}>ACTIVIDADES</th>
-                <th style={{ padding: '1rem', fontSize: '0.65rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase', minWidth: '150px' }}>TAREAS DE CUMPLIMIENTO</th>
+              <tr style={{ background: '#f1f5f9', borderBottom: '2px solid #e2e8f0' }}>
+                <th style={{ padding: '1rem', fontSize: '0.65rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase', minWidth: '180px' }}>RESULTADOS PROPUESTOS POR LA INSTITUCIÓN AL 2030 (MeGAs)</th>
+                <th style={{ padding: '1rem', fontSize: '0.65rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase', minWidth: '180px' }}>PRODUCTOS INTERMEDIOS PROPUESTOS POR LA ENTIDAD (100%)</th>
+                <th style={{ padding: '1rem', fontSize: '0.65rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase', minWidth: '180px' }}>ACTIVIDADES A REALIZAR</th>
+                <th style={{ padding: '1rem', fontSize: '0.65rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase', minWidth: '180px' }}>TAREAS DE CUMPLIMIENTO</th>
                 <th style={{ textAlign: 'center', padding: '1rem', color: '#475569', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase' }}>PESO (%)</th>
                 <th style={{ textAlign: 'center', padding: '1rem', color: '#475569', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', minWidth: '100px' }}>INICIO / FIN</th>
                 <th style={{ textAlign: 'center', padding: '1rem', color: '#475569', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase' }}>MEDIO VERIF.</th>
@@ -355,9 +377,41 @@ const Monitoring = ({ user }) => {
                       transition={{ delay: idx * 0.05 }}
                       style={{ borderBottom: '1px solid #f1f5f9', background: idx % 2 === 0 ? 'white' : '#fcfdfe' }}
                     >
-                      <td style={{ padding: '0.75rem', fontSize: '0.75rem', color: '#475569', fontWeight: 600 }}>{row.mega_code} - {row.mega_name?.substring(0,40)}...</td>
-                      <td style={{ padding: '0.75rem', fontSize: '0.75rem', color: '#64748b' }}>{row.producto_name?.substring(0,50)}...</td>
-                      <td style={{ padding: '0.75rem', fontSize: '0.75rem', color: '#64748b' }}>{row.actividad_name?.substring(0,50)}...</td>
+                       {(() => {
+                        const rowSpans = (data) => {
+                          const fields = ['mega_name', 'producto_name'];
+                          const spans = {};
+                          fields.forEach(f => spans[f] = new Array(data.length).fill(0));
+                          fields.forEach(f => {
+                            let i = 0;
+                            while (i < data.length) {
+                              let count = 1;
+                              while (i + count < data.length && (f === 'producto_name' ? (data[i][f] === data[i + count][f] && data[i].mega_name === data[i+count].mega_name) : data[i][f] === data[i + count][f])) {
+                                count++;
+                              }
+                              spans[f][i] = count;
+                              i += count;
+                            }
+                          });
+                          return spans;
+                        };
+                        const spans = rowSpans(filteredData);
+                        return (
+                          <>
+                            {spans['mega_name'][idx] > 0 && (
+                              <td rowSpan={spans['mega_name'][idx]} style={{ padding: '1rem', fontSize: '0.75rem', color: '#475569', fontWeight: 900, borderRight: '1px solid #f1f5f9', verticalAlign: 'top', background: 'white' }}>
+                                {row.mega_code} - {row.mega_name?.substring(0,80)}...
+                              </td>
+                            )}
+                            {spans['producto_name'][idx] > 0 && (
+                              <td rowSpan={spans['producto_name'][idx]} style={{ padding: '1rem', fontSize: '0.75rem', color: '#64748b', borderRight: '1px solid #f1f5f9', verticalAlign: 'top', background: 'white' }}>
+                                {row.producto_name?.substring(0,100)}...
+                              </td>
+                            )}
+                          </>
+                        );
+                      })()}
+                      <td style={{ padding: '0.75rem', fontSize: '0.75rem', color: '#64748b' }}>{row.actividad_name?.substring(0,80)}...</td>
                       <td style={{ padding: '0.75rem', color: '#0f172a', fontSize: '0.8rem' }}>
                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                            <span style={{ fontWeight: 800 }}>{row.name}</span>
@@ -412,7 +466,7 @@ const Monitoring = ({ user }) => {
                                 }}>
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '4px' }}>
                                     <span style={{ fontSize: '0.65rem', fontWeight: 900, color: '#475569' }}>
-                                      {row.tipo_avance === 'Diario' ? 'D' : 'S'}{sem}
+                                      {row.is_hitos_mode ? 'Hito' : (row.tipo_avance === 'Diario' ? 'D' : 'S')}{sem}
                                     </span>
                                     {avData.id && (
                                       <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: statusColor }} title={avData.estado} />
@@ -617,15 +671,31 @@ const Monitoring = ({ user }) => {
 
               <div>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', fontWeight: 800, marginBottom: '0.6rem', color: '#1e293b' }}>
-                  <Paperclip size={16} /> Enlace de Evidencia (Link)
+                  <Paperclip size={16} /> Evidencia Adjunta (Link o Archivo)
                 </label>
-                <input 
-                  type="text"
-                  placeholder="https://drive.google.com/..."
-                  style={{ width: '100%', padding: '1rem', borderRadius: '16px', border: '1px solid #e2e8f0', background: reportDialog.evidence ? '#f0f9ff' : '#f8fafc' }}
-                  value={reportDialog.evidence}
-                  onChange={(e) => setReportDialog({...reportDialog, evidence: e.target.value})}
-                />
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <input 
+                    type="text"
+                    placeholder="https://drive.google.com/ o subir archivo..."
+                    style={{ flex: 1, padding: '1rem', borderRadius: '16px', border: '1px solid #e2e8f0', background: reportDialog.evidence ? '#f0f9ff' : '#f8fafc' }}
+                    value={reportDialog.evidence}
+                    onChange={(e) => setReportDialog({...reportDialog, evidence: e.target.value})}
+                  />
+                  <div style={{ position: 'relative' }}>
+                    <button 
+                      type="button"
+                      disabled={reportDialog.isUploading}
+                      style={{ height: '100%', padding: '0 1.5rem', borderRadius: '16px', border: 'none', background: '#3b82f6', color: 'white', fontWeight: 800, cursor: reportDialog.isUploading ? 'not-allowed' : 'pointer' }}
+                    >
+                      {reportDialog.isUploading ? 'Subiendo...' : 'Examinar'}
+                    </button>
+                    <input 
+                      type="file" 
+                      onChange={handleFileUpload} 
+                      style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }}
+                    />
+                  </div>
+                </div>
               </div>
 
               <div>
