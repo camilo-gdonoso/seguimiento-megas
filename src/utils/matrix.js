@@ -24,3 +24,17 @@ export const groupTasksByUser = (tasks) => {
 
   return Object.values(grouped);
 };
+
+export const calculateAverages = (tasks) => {
+  if (!Array.isArray(tasks) || tasks.length === 0) return { poa: '0.0', noPoa: '0.0' };
+  
+  const poaTasks = tasks.filter(t => t.vinculada_poa === 'SI');
+  const noPoaTasks = tasks.filter(t => t.vinculada_poa !== 'SI');
+  
+  const calc = (ts) => ts.length > 0 ? (ts.reduce((acc, t) => acc + (parseFloat(t.avance_fisico) || 0), 0) / ts.length) : 0;
+  
+  return {
+    poa: calc(poaTasks).toFixed(1),
+    noPoa: calc(noPoaTasks).toFixed(1)
+  };
+};

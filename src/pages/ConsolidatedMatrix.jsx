@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { FileText, Users, Printer, Download } from 'lucide-react';
 import axios from 'axios';
-import { groupTasksByUser } from '../utils/matrix';
+import { groupTasksByUser, calculateAverages } from '../utils/matrix';
 
 const API_URL = '/api';
 
@@ -40,16 +40,7 @@ const ConsolidatedMatrix = () => {
       const grouped = groupTasksByUser(tasks);
       setData(grouped);
 
-      // Calculate global averages for this view
-      const poaTasks = tasks.filter(t => t.vinculada_poa === 'SI');
-      const noPoaTasks = tasks.filter(t => t.vinculada_poa !== 'SI');
-      
-      const calcAvg = (ts) => ts.length > 0 ? (ts.reduce((acc, t) => acc + (parseFloat(t.avance_fisico) || 0), 0) / ts.length) : 0;
-      
-      setAverages({
-        poa: calcAvg(poaTasks).toFixed(1),
-        noPoa: calcAvg(noPoaTasks).toFixed(1)
-      });
+      setAverages(calculateAverages(tasks));
     } catch (err) {
       console.error(err);
     } finally {
@@ -155,7 +146,8 @@ const ConsolidatedMatrix = () => {
 };
 
 const SectionTitle = ({ title, color, tasks }) => {
-  const avg = tasks.length > 0 ? (tasks.reduce((acc, t) => acc + (parseFloat(t.avance_fisico) || 0), 0) / tasks.length).toFixed(1) : '0.0';
+  const avgs = calculateAverages(tasks);
+  const avg = title.includes('POA') ? avgs.poa : avgs.noPoa;
   
   return (
     <div style={{ 
