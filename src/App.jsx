@@ -9,6 +9,7 @@ import Documentation from './pages/Documentation';
 import Users from './pages/Users';
 import Audit from './pages/Audit';
 import Login from './pages/Login';
+import ConsolidatedMatrix from './pages/ConsolidatedMatrix';
 
 const Layout = ({ children, user, onLogout }) => {
   const location = useLocation();
@@ -36,6 +37,7 @@ const Layout = ({ children, user, onLogout }) => {
     { path: '/catalogo', label: 'Matriz de Planificación', icon: <Database size={20} /> },
     { path: '/segui', label: 'Seguimiento', icon: <Activity size={20} /> },
     { path: '/', label: 'Reporte', icon: <LayoutDashboard size={20} /> },
+    { path: '/matrix', label: 'Vista por Funcionario', icon: <UsersIcon size={20} /> },
     ...(user?.role === 'Admin' ? [
       { path: '/usuarios', label: 'Usuarios', icon: <UsersIcon size={20} /> },
       { path: '/auditoria', label: 'Auditoría', icon: <ShieldCheck size={20} /> },
@@ -183,6 +185,7 @@ function App() {
       <Layout user={user} onLogout={handleLogout}>
         <Routes>
           <Route path="/" element={<Dashboard user={user} />} />
+          <Route path="/matrix" element={<ConsolidatedMatrix user={user} />} />
           <Route path="/catalogo" element={<Catalog user={user} />} />
           <Route path="/segui" element={<Monitoring user={user} />} />
           <Route path="/usuarios" element={user?.role === 'Admin' ? <Users user={user} /> : <Navigate to="/" replace />} />
