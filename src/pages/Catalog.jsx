@@ -4,6 +4,7 @@ import { Plus, Database, ChevronRight, Edit2, Trash2, Layers, Building, Search, 
 import axios from 'axios';
 import HierarchyTree from '../components/HierarchyTree';
 import { ORGANIGRAM } from './organigram';
+import { calculatePlanograma } from '../utils/planning';
 
 const API_URL = '/api';
 
@@ -141,50 +142,24 @@ const Catalog = ({ user }) => {
     const isHitos = contextData.is_hitos_mode;
     const targetValue = isHitos ? contextData.hitos_total : contextData.ponderacion_producto;
 
-    if (!contextData.fecha_inicio || !contextData.fecha_fin || !targetValue) {
-      if (!overrideData) setAlertDialog({ isOpen: true, type: 'error', message: `Para autocalcular el cronograma, primero defina Fecha Inicio, Fecha Fin y ${isHitos ? 'Meta (Peso o Hitos)' : 'Peso %'}.` });
-      return;
-    }
-    const s = new Date(contextData.fecha_inicio);
-    const e = new Date(contextData.fecha_fin);
-    if (e < s) {
-      if (!overrideData) setAlertDialog({ isOpen: true, type: 'error', message: 'La Fecha Fin debe ser posterior a la Fecha de Inicio.' });
-      return;
-    }
-    
-    let periods = 0;
-    const tipo = contextData.tipo_avance || 'Semanal';
-    
-    if (tipo === 'Semanal') {
-      let cur = new Date(s);
-      while (cur <= e) {
-        periods++;
-        cur.setDate(cur.getDate() + 7);
-      }
-      periods = Math.max(1, periods);
-    } else {
-      let cur = new Date(s);
-      while (cur <= e) {
-        const day = cur.getDay();
-        if (day !== 0 && day !== 6) periods++; 
-        cur.setDate(cur.getDate() + 1);
-      }
-      periods = Math.max(1, periods);
-    }
-    
-    const plan = [];
-    const valPerPeriod = (parseFloat(targetValue) / periods).toFixed(isHitos ? 0 : 2);
-    let currentSum = 0;
+    const plan = calculatePlanograma({
+      fecha_inicio: contextData.fecha_inicio,
+      fecha_fin: contextData.fecha_fin,
+      targetValue,
+      tipo_avance: contextData.tipo_avance,
+      is_hitos_mode: isHitos
+    });
 
-    for (let i = 1; i <= periods; i++) {
-        let val = parseFloat(valPerPeriod);
-        if (i === periods) {
-            val = (parseFloat(targetValue) - currentSum).toFixed(isHitos ? 0 : 2);
-        }
-        plan.push({ periodo: i, valor: val });
-        currentSum += parseFloat(val);
+    if (!plan) {
+      if (!overrideData) setAlertDialog({ 
+        isOpen: true, 
+        type: 'error', 
+        message: 'No se pudo generar el cronograma. Verifique las fechas y la meta.' 
+      });
+      return;
     }
-    setFormData({ ...contextData, planograma: plan, tipo_avance: tipo });
+
+    setFormData({ ...contextData, planograma: plan, tipo_avance: contextData.tipo_avance || 'Semanal' });
   };
 
   const handleSave = async (e) => {
