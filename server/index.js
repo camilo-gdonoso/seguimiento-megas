@@ -35,9 +35,24 @@ const pool = new Pool({
     ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
 });
 
+if (!process.env.DATABASE_URL) {
+    console.error('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+    console.error('!! WARNING: DATABASE_URL is NOT defined in ENV vars.  !!');
+    console.error('!! Ensure Vercel Postgres is linked or set manually.  !!');
+    console.error('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+}
+
 // Middleware for Vercel initialization - MUST BE AT THE TOP
 let isDbInitialized = false;
 app.use(async (req, res, next) => {
+    if (!process.env.DATABASE_URL && process.env.VERCEL) {
+        return res.status(500).json({
+            error: 'Base de Datos no vinculada',
+            message: 'La variable DATABASE_URL no existe. Por favor, crea un "Vercel Postgres Storage" en el panel de Vercel y vincúlalo a este proyecto.',
+            hint: 'Ve a la pestaña Storage en Vercel, crea un Postgres y haz clic en Connect.'
+        });
+    }
+
     if (process.env.VERCEL && !isDbInitialized) {
         try {
             // First ensure essential tables exist (Blocking)

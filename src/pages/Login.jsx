@@ -19,7 +19,12 @@ const Login = ({ onLogin }) => {
       const response = await axios.post(`${API_URL}/login`, { username, password });
       onLogin(response.data);
     } catch (err) {
-      setError(err.response?.data?.error || 'Error al conectar con el servidor');
+      const serverError = err.response?.data;
+      if (typeof serverError === 'object' && serverError !== null) {
+        setError(serverError.error || serverError.message || 'Error del servidor');
+      } else {
+        setError(serverError || 'Error al conectar con el servidor');
+      }
     } finally {
       setLoading(false);
     }
