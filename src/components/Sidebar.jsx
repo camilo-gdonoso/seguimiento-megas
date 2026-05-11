@@ -18,7 +18,7 @@ const Sidebar = () => {
     const { activeView, setActiveView, activeRole, setActiveRole, user, logout, isSidebarOpen, setIsSidebarOpen } = useApp();
 
     const menuItems = [
-        { id: 'megas', label: 'MeGAs', icon: <Layers size={20} />, section: 'Menú' },
+        { id: 'megas', label: 'Matriz de Planificación', icon: <Layers size={20} />, section: 'Menú' },
         { id: 'monitoring', label: 'Seguimiento', icon: <Activity size={20} />, section: 'Menú' },
         { id: 'dashboard', label: 'Reporte', icon: <BarChart3 size={20} />, section: 'Menú' },
         { id: 'users', label: 'Usuarios', icon: <Users size={20} />, section: 'Administración' },
