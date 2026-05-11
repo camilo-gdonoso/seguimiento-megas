@@ -31,6 +31,9 @@ const Catalog = ({ user }) => {
   const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: '', message: '', onConfirm: null });
   const [alertDialog, setAlertDialog] = useState({ isOpen: false, title: '', message: '', type: 'info' });
   const [isIsolatedMode, setIsIsolatedMode] = useState(false);
+  const [isWizardOpen, setIsWizardOpen] = useState(false);
+  const [wizardStep, setWizardStep] = useState(1);
+  const [wizardData, setWizardData] = useState({ mega: {}, producto: {}, actividad: {}, tarea: {} });
 
   const [exportYear, setExportYear] = useState(new Date().getFullYear());
 
@@ -239,6 +242,39 @@ const Catalog = ({ user }) => {
     }
   };
 
+  const handleWizardSave = async () => {
+    try {
+      setError(null);
+      // Validations
+      if (!wizardData.mega.code || !wizardData.mega.name || !wizardData.mega.estrategia_id) { setError('Faltan datos del MeGA'); return; }
+      if (!wizardData.producto.name) { setError('Faltan datos del Producto'); return; }
+      if (!wizardData.actividad.name) { setError('Faltan datos de la Actividad'); return; }
+      if (!wizardData.tarea.name || !wizardData.tarea.code) { setError('Faltan datos de la Tarea'); return; }
+
+      // 1. Create MeGA
+      const resMega = await axios.post(`${API_URL}/megas`, wizardData.mega);
+      const megaId = resMega.data.id;
+      
+      // 2. Create Producto
+      const resProd = await axios.post(`${API_URL}/productos`, { ...wizardData.producto, mega_id: megaId, ponderacion_total: 100 });
+      const prodId = resProd.data.id;
+      
+      // 3. Create Actividad
+      const resAct = await axios.post(`${API_URL}/actividades`, { ...wizardData.actividad, producto_id: prodId });
+      const actId = resAct.data.id;
+      
+      // 4. Create Tarea
+      await axios.post(`${API_URL}/tareas`, { ...wizardData.tarea, actividad_id: actId, ponderacion_producto: 100 });
+      
+      setIsWizardOpen(false);
+      fetchData();
+      fetchSupportData();
+      setAlertDialog({ isOpen: true, title: 'Éxito', message: 'Estructura jerárquica creada y vinculada correctamente.', type: 'success' });
+    } catch (err) {
+      setError(err.response?.data?.error || 'Error al procesar el asistente');
+    }
+  };
+
   const handleDelete = async (id) => {
     setConfirmDialog({
       isOpen: true,
@@ -362,13 +398,24 @@ const Catalog = ({ user }) => {
             />
           </div>
           {isAdmin && activeTab !== 'organigrama' && (
-            <button 
-              className="btn-primary" 
-              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-              onClick={() => handleOpenModal()}
-            >
-              <Plus size={18} /> Nuevo Registro
-            </button>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              {!isIsolatedMode && (
+                <button 
+                  className="btn-primary" 
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)', boxShadow: '0 10px 15px -3px rgba(139, 92, 246, 0.3)' }}
+                  onClick={() => { setWizardData({ mega: {}, producto: {}, actividad: {}, tarea: { tipo_avance: 'Semanal', ponderacion_producto: 0 } }); setWizardStep(1); setIsWizardOpen(true); }}
+                >
+                  <Layers size={18} /> Asistente de Matriz
+                </button>
+              )}
+              <button 
+                className="btn-primary" 
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                onClick={() => handleOpenModal()}
+              >
+                <Plus size={18} /> Nuevo Registro
+              </button>
+            </div>
           )}
         </div>
       </header>
@@ -748,8 +795,8 @@ const Catalog = ({ user }) => {
                   <FileText size={28} />
                </div>
                <div>
-                 <h2 style={{ fontSize: '1.75rem', fontWeight: 900, color: '#0f172a', margin: 0, lineHeight: 1 }}>{(activeTab === 'tareas' || activeTab === 'tareas_aisladas') ? 'Ficha de Tareas' : 'Nuevo Registro'}</h2>
-                 <p style={{ color: '#64748b', fontSize: '0.85rem', marginTop: '0.3rem', fontWeight: 500 }}>{isIsolatedMode ? 'Modo de Registro Aislado (Sin dependencias)' : 'Modo de Registro Jerárquico (Estructura Institucional)'}</p>
+                 <h2 style={{ fontSize: '1.75rem', fontWeight: 900, color: '#0f172a', margin: 0, lineHeight: 1 }}>{isIsolatedMode ? 'Nuevo Elemento Aislado' : ((activeTab === 'tareas' || activeTab === 'tareas_aisladas') ? 'Nuevo Elemento (Tarea)' : 'Nuevo Registro')}</h2>
+                 <p style={{ color: '#64748b', fontSize: '0.85rem', marginTop: '0.3rem', fontWeight: 500 }}>{isIsolatedMode ? 'Parametrización completa para seguimiento independiente' : 'Registro de componentes de la estructura institucional'}</p>
                </div>
             </div>
             
@@ -761,7 +808,7 @@ const Catalog = ({ user }) => {
 
             <form onSubmit={handleSave}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
-                {(activeTab !== 'tareas' && activeTab !== 'tareas_aisladas') ? (
+                {(activeTab !== 'tareas' && activeTab !== 'tareas_aisladas' && !isIsolatedMode) ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
                     <div style={{ display: 'grid', gridTemplateColumns: '150px 1fr', gap: '1.5rem' }}>
                       <div>
@@ -1019,6 +1066,87 @@ const Catalog = ({ user }) => {
                 Confirmar
               </button>
             </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Wizard Modal */}
+      {isWizardOpen && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '2rem' }}>
+          <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="glass-card" style={{ width: '900px', maxHeight: '90vh', overflowY: 'auto', padding: '3rem', background: 'white', borderRadius: '32px' }}>
+             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+                <h2 style={{ fontSize: '1.75rem', fontWeight: 900 }}>Asistente de Planificación (Paso {wizardStep}/4)</h2>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  {[1,2,3,4].map(s => <div key={s} style={{ width: '40px', height: '8px', borderRadius: '4px', background: s <= wizardStep ? '#3b82f6' : '#e2e8f0' }} />)}
+                </div>
+             </div>
+
+             {error && <div style={{ padding: '1rem', background: '#fee2e2', color: '#991b1b', borderRadius: '12px', marginBottom: '1.5rem' }}>{error}</div>}
+
+             <div style={{ background: '#f8fafc', padding: '2rem', borderRadius: '24px', border: '1px solid #e2e8f0', marginBottom: '2rem' }}>
+                {wizardStep === 1 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                    <h3 style={{ margin: 0, color: '#1e40af' }}>1. Configuración de MeGA (Resultado)</h3>
+                    <select required style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '1px solid #cbd5e1' }} value={wizardData.mega.estrategia_id || ''} onChange={e => setWizardData({...wizardData, mega: {...wizardData.mega, estrategia_id: e.target.value}})}>
+                      <option value="">Seleccionar Estratégica Institucional...</option>
+                      {estrategias.map(es => <option key={es.id} value={es.id}>{es.code}: {es.description?.substring(0,80)}...</option>)}
+                    </select>
+                    <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '1rem' }}>
+                       <input placeholder="Código" style={{ padding: '1rem', borderRadius: '14px', border: '1px solid #cbd5e1' }} value={wizardData.mega.code || ''} onChange={e => setWizardData({...wizardData, mega: {...wizardData.mega, code: e.target.value}})} />
+                       <input placeholder="Nombre del MeGA / Resultado" style={{ padding: '1rem', borderRadius: '14px', border: '1px solid #cbd5e1' }} value={wizardData.mega.name || ''} onChange={e => setWizardData({...wizardData, mega: {...wizardData.mega, name: e.target.value}})} />
+                    </div>
+                    <select style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '1px solid #cbd5e1' }} value={wizardData.mega.unit_id || ''} onChange={e => setWizardData({...wizardData, mega: {...wizardData.mega, unit_id: e.target.value}})}>
+                      <option value="">Unidad Responsable...</option>
+                      {units.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                    </select>
+                  </div>
+                )}
+
+                {wizardStep === 2 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                    <h3 style={{ margin: 0, color: '#1e40af' }}>2. Definición de Producto Intermedio</h3>
+                    <input placeholder="Código de Producto" style={{ padding: '1rem', borderRadius: '14px', border: '1px solid #cbd5e1' }} value={wizardData.producto.code || ''} onChange={e => setWizardData({...wizardData, producto: {...wizardData.producto, code: e.target.value}})} />
+                    <textarea rows="3" placeholder="Descripción del Producto (100%)" style={{ padding: '1rem', borderRadius: '14px', border: '1px solid #cbd5e1' }} value={wizardData.producto.name || ''} onChange={e => setWizardData({...wizardData, producto: {...wizardData.producto, name: e.target.value}})} />
+                  </div>
+                )}
+
+                {wizardStep === 3 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                    <h3 style={{ margin: 0, color: '#1e40af' }}>3. Actividad Operativa</h3>
+                    <input placeholder="Código de Actividad" style={{ padding: '1rem', borderRadius: '14px', border: '1px solid #cbd5e1' }} value={wizardData.actividad.code || ''} onChange={e => setWizardData({...wizardData, actividad: {...wizardData.actividad, code: e.target.value}})} />
+                    <textarea rows="3" placeholder="Descripción de la Actividad" style={{ padding: '1rem', borderRadius: '14px', border: '1px solid #cbd5e1' }} value={wizardData.actividad.name || ''} onChange={e => setWizardData({...wizardData, actividad: {...wizardData.actividad, name: e.target.value}})} />
+                  </div>
+                )}
+
+                {wizardStep === 4 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                    <h3 style={{ margin: 0, color: '#1e40af' }}>4. Tarea de Cumplimiento Final</h3>
+                    <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '1rem' }}>
+                       <input placeholder="T-01" style={{ padding: '1rem', borderRadius: '14px', border: '2px solid #3b82f6', fontWeight: 900 }} value={wizardData.tarea.code || ''} onChange={e => setWizardData({...wizardData, tarea: {...wizardData.tarea, code: e.target.value}})} />
+                       <input placeholder="Descripción de la Tarea" style={{ padding: '1rem', borderRadius: '14px', border: '1px solid #cbd5e1' }} value={wizardData.tarea.name || ''} onChange={e => setWizardData({...wizardData, tarea: {...wizardData.tarea, name: e.target.value}})} />
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                       <select style={{ padding: '1rem', borderRadius: '14px', border: '1px solid #cbd5e1' }} value={wizardData.tarea.user_id || ''} onChange={e => setWizardData({...wizardData, tarea: {...wizardData.tarea, user_id: e.target.value}})}>
+                          <option value="">Responsable Ejecución...</option>
+                          {users.map(u => <option key={u.id} value={u.id}>{u.fullname}</option>)}
+                       </select>
+                       <select style={{ padding: '1rem', borderRadius: '14px', border: '1px solid #cbd5e1' }} value={wizardData.tarea.director_id || ''} onChange={e => setWizardData({...wizardData, tarea: {...wizardData.tarea, director_id: e.target.value}})}>
+                          <option value="">Director Supervisor...</option>
+                          {users.filter(u => u.role === 'Director').map(u => <option key={u.id} value={u.id}>{u.fullname}</option>)}
+                       </select>
+                    </div>
+                  </div>
+                )}
+             </div>
+
+             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <button className="btn-secondary" onClick={() => { if (wizardStep > 1) setWizardStep(wizardStep - 1); else setIsWizardOpen(false); }}>
+                  {wizardStep === 1 ? 'Cancelar' : 'Anterior'}
+                </button>
+                <button className="btn-primary" onClick={() => { if (wizardStep < 4) setWizardStep(wizardStep + 1); else handleWizardSave(); }}>
+                  {wizardStep === 4 ? 'Finalizar y Crear Estructura' : 'Siguiente'}
+                </button>
+             </div>
           </motion.div>
         </div>
       )}

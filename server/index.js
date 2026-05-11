@@ -121,11 +121,47 @@ const initDb = async () => {
             ALTER TABLE tareas ADD COLUMN IF NOT EXISTS hitos_completados INTEGER DEFAULT 0;
             
             ALTER TABLE ejes ADD COLUMN IF NOT EXISTS is_isolated BOOLEAN DEFAULT FALSE;
+            
             ALTER TABLE resultados ADD COLUMN IF NOT EXISTS is_isolated BOOLEAN DEFAULT FALSE;
+            
             ALTER TABLE estrategias ADD COLUMN IF NOT EXISTS is_isolated BOOLEAN DEFAULT FALSE;
+            
             ALTER TABLE megas ADD COLUMN IF NOT EXISTS is_isolated BOOLEAN DEFAULT FALSE;
+            ALTER TABLE megas ADD COLUMN IF NOT EXISTS planograma JSONB;
+            ALTER TABLE megas ADD COLUMN IF NOT EXISTS responsable_nombre TEXT;
+            ALTER TABLE megas ADD COLUMN IF NOT EXISTS responsable_cargo TEXT;
+            ALTER TABLE megas ADD COLUMN IF NOT EXISTS medio_verificacion TEXT;
+            ALTER TABLE megas ADD COLUMN IF NOT EXISTS tipo_avance VARCHAR(20) DEFAULT 'Semanal';
+            ALTER TABLE megas ADD COLUMN IF NOT EXISTS is_hitos_mode BOOLEAN DEFAULT FALSE;
+            ALTER TABLE megas ADD COLUMN IF NOT EXISTS hitos_total INTEGER DEFAULT 0;
+            ALTER TABLE megas ADD COLUMN IF NOT EXISTS hitos_completados INTEGER DEFAULT 0;
+            ALTER TABLE megas ADD COLUMN IF NOT EXISTS user_id INTEGER;
+            ALTER TABLE megas ADD COLUMN IF NOT EXISTS director_id INTEGER;
+
             ALTER TABLE productos_intermedios ADD COLUMN IF NOT EXISTS is_isolated BOOLEAN DEFAULT FALSE;
+            ALTER TABLE productos_intermedios ADD COLUMN IF NOT EXISTS planograma JSONB;
+            ALTER TABLE productos_intermedios ADD COLUMN IF NOT EXISTS responsable_nombre TEXT;
+            ALTER TABLE productos_intermedios ADD COLUMN IF NOT EXISTS responsable_cargo TEXT;
+            ALTER TABLE productos_intermedios ADD COLUMN IF NOT EXISTS medio_verificacion TEXT;
+            ALTER TABLE productos_intermedios ADD COLUMN IF NOT EXISTS tipo_avance VARCHAR(20) DEFAULT 'Semanal';
+            ALTER TABLE productos_intermedios ADD COLUMN IF NOT EXISTS is_hitos_mode BOOLEAN DEFAULT FALSE;
+            ALTER TABLE productos_intermedios ADD COLUMN IF NOT EXISTS hitos_total INTEGER DEFAULT 0;
+            ALTER TABLE productos_intermedios ADD COLUMN IF NOT EXISTS hitos_completados INTEGER DEFAULT 0;
+            ALTER TABLE productos_intermedios ADD COLUMN IF NOT EXISTS user_id INTEGER;
+            ALTER TABLE productos_intermedios ADD COLUMN IF NOT EXISTS director_id INTEGER;
+
             ALTER TABLE actividades ADD COLUMN IF NOT EXISTS is_isolated BOOLEAN DEFAULT FALSE;
+            ALTER TABLE actividades ADD COLUMN IF NOT EXISTS planograma JSONB;
+            ALTER TABLE actividades ADD COLUMN IF NOT EXISTS responsable_nombre TEXT;
+            ALTER TABLE actividades ADD COLUMN IF NOT EXISTS responsable_cargo TEXT;
+            ALTER TABLE actividades ADD COLUMN IF NOT EXISTS medio_verificacion TEXT;
+            ALTER TABLE actividades ADD COLUMN IF NOT EXISTS tipo_avance VARCHAR(20) DEFAULT 'Semanal';
+            ALTER TABLE actividades ADD COLUMN IF NOT EXISTS is_hitos_mode BOOLEAN DEFAULT FALSE;
+            ALTER TABLE actividades ADD COLUMN IF NOT EXISTS hitos_total INTEGER DEFAULT 0;
+            ALTER TABLE actividades ADD COLUMN IF NOT EXISTS hitos_completados INTEGER DEFAULT 0;
+            ALTER TABLE actividades ADD COLUMN IF NOT EXISTS user_id INTEGER;
+            ALTER TABLE actividades ADD COLUMN IF NOT EXISTS director_id INTEGER;
+            ALTER TABLE actividades ADD COLUMN IF NOT EXISTS avance_fisico DECIMAL(5,2) DEFAULT 0.00;
         `);
         await pool.query(`CREATE TABLE IF NOT EXISTS tareas (
             id SERIAL PRIMARY KEY, 
