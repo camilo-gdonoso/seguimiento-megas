@@ -200,7 +200,20 @@ const Catalog = ({ user }) => {
         }
       }
       const resource = resourceMap[activeTab];
-      const dataToSave = { ...formData, is_isolated: isIsolatedMode };
+      let dataToSave = { ...formData, is_isolated: isIsolatedMode };
+
+      // Handle File Upload if exists
+      if (formData.evidence_file) {
+          const fileFormData = new FormData();
+          fileFormData.append('evidencia', formData.evidence_file);
+          const uploadRes = await axios.post(`${API_URL}/upload`, fileFormData, {
+              headers: { 'Content-Type': 'multipart/form-data' }
+          });
+          if (uploadRes.data.success) {
+              dataToSave.medio_verificacion = uploadRes.data.url;
+              delete dataToSave.evidence_file;
+          }
+      }
       
       // If isolated mode, parents are null
       if (isIsolatedMode) {
@@ -697,7 +710,13 @@ const Catalog = ({ user }) => {
                         </div>
                       </td>
                       <td style={{ padding: '1rem', color: '#64748b', fontSize: '0.75rem' }}>
-                        {item.medio_verificacion || '---'}
+                        {item.medio_verificacion?.startsWith('/uploads') ? (
+                          <a href={`${API_URL}${item.medio_verificacion}`} target="_blank" rel="noreferrer" style={{ color: '#2563eb', fontWeight: 700, textDecoration: 'underline' }}>
+                            Ver Archivo 📎
+                          </a>
+                        ) : (
+                          item.medio_verificacion || '---'
+                        )}
                       </td>
                       <td style={{ padding: '1rem', color: '#475569', fontWeight: 700 }}>
                         <div style={{ display: 'flex', flexDirection: 'column' }}>
