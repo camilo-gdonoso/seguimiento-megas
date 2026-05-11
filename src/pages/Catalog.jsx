@@ -30,6 +30,7 @@ const Catalog = ({ user }) => {
   // Custom Modals States
   const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: '', message: '', onConfirm: null });
   const [alertDialog, setAlertDialog] = useState({ isOpen: false, title: '', message: '', type: 'info' });
+  const [isIsolatedMode, setIsIsolatedMode] = useState(false);
 
   const [exportYear, setExportYear] = useState(new Date().getFullYear());
 
@@ -46,8 +47,7 @@ const Catalog = ({ user }) => {
     { id: 'megas', label: 'MeGAs (2030)', icon: Layers, group: 'Operativo' },
     { id: 'productos', label: 'Productos', icon: Database, group: 'Operativo' },
     { id: 'actividades', label: 'Actividades', icon: Layers, group: 'Operativo' },
-    { id: 'tareas', label: 'Tareas (POA)', icon: ClipboardCheck, group: 'Operativo' },
-    { id: 'tareas_aisladas', label: 'Tareas Aisladas', icon: Shield, group: 'Operativo' },
+    { id: 'tareas', label: 'Tareas / Matriz', icon: ClipboardCheck, group: 'Operativo' },
     { id: 'organigrama', label: 'Estructura', icon: Building, group: 'Base' },
     { id: 'ejes', label: 'Ejes', icon: Database, group: 'Base' },
     { id: 'resultados', label: 'Resultados', icon: Layers, group: 'Base' },
@@ -205,7 +205,17 @@ const Catalog = ({ user }) => {
         }
       }
       const resource = resourceMap[activeTab];
-      const dataToSave = { ...formData };
+      const dataToSave = { ...formData, is_isolated: isIsolatedMode };
+      
+      // If isolated mode, parents are null
+      if (isIsolatedMode) {
+        if (activeTab === 'resultados') dataToSave.eje_id = null;
+        if (activeTab === 'estrategias') dataToSave.resultado_id = null;
+        if (activeTab === 'megas') dataToSave.estrategia_id = null;
+        if (activeTab === 'productos') dataToSave.mega_id = null;
+        if (activeTab === 'actividades') dataToSave.producto_id = null;
+        if (activeTab === 'tareas') dataToSave.actividad_id = null;
+      }
       
       // Force conversion of relational IDs to Numbers before saving
       if (dataToSave.eje_id) dataToSave.eje_id = Number(dataToSave.eje_id);
@@ -253,16 +263,22 @@ const Catalog = ({ user }) => {
   };
 
   const filteredData = data.filter(item => {
-    // Tab filtering for Tareas
-    if (activeTab === 'tareas' && item.is_isolated) return false;
-    if (activeTab === 'tareas_aisladas' && !item.is_isolated) return false;
-
-    if (!searchTerm) return true;
     const searchLower = searchTerm.toLowerCase();
-    const nameMatch = item.name?.toLowerCase().includes(searchLower);
-    const descMatch = item.description?.toLowerCase().includes(searchLower);
-    const codeMatch = item.code?.toLowerCase().includes(searchLower);
-    return nameMatch || descMatch || codeMatch;
+    const matchSearch = (item.name || item.description || item.code || '').toLowerCase().includes(searchLower);
+    
+    // Mode Filter
+    const matchMode = Boolean(item.is_isolated) === isIsolatedMode;
+    if (!matchMode) return false;
+
+    // Filter by role: Tecnicos only see their assigned tasks
+    if (activeTab === 'tareas' && user?.role === 'Tecnico') {
+        return matchSearch && Number(item.user_assigned_id) === Number(user?.id);
+    }
+    // Filter by unit: Directores only see their unit's tasks
+    if (activeTab === 'tareas' && user?.role === 'Director') {
+        return matchSearch && Number(item.unit_id) === Number(user?.unit_id);
+    }
+    return matchSearch;
   });
 
   const isDirector = user?.role?.toLowerCase().includes('director');
@@ -302,12 +318,28 @@ const Catalog = ({ user }) => {
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-      <header style={{ marginBottom: '2.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+      <header style={{ marginBottom: '2.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h1 className="hero-title">MeGAs</h1>
-          <p style={{ color: '#64748b' }}>Parametrización Inicial</p>
+          <h1 className="hero-title">Matriz de Planificación</h1>
+          <p style={{ color: '#64748b' }}>Gestión de Parámetros y Cronogramas Institucionales</p>
         </div>
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
+           <div className="glass-card" style={{ padding: '0.4rem 0.8rem', display: 'flex', gap: '0.75rem', alignItems: 'center', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 800, color: isIsolatedMode ? '#94a3b8' : 'var(--primary)' }}>Jerárquico</span>
+              <button 
+                onClick={() => setIsIsolatedMode(!isIsolatedMode)}
+                style={{ 
+                  width: '40px', height: '20px', borderRadius: '10px', background: isIsolatedMode ? 'var(--primary)' : '#cbd5e1', 
+                  border: 'none', position: 'relative', cursor: 'pointer', transition: 'all 0.3s' 
+                }}
+              >
+                <div style={{ 
+                  width: '14px', height: '14px', background: 'white', borderRadius: '50%', 
+                  position: 'absolute', top: '3px', left: isIsolatedMode ? '23px' : '3px', transition: 'all 0.3s' 
+                }} />
+              </button>
+              <span style={{ fontSize: '0.75rem', fontWeight: 800, color: isIsolatedMode ? 'var(--primary)' : '#94a3b8' }}>Aislado</span>
+           </div>
           <div style={{ position: 'relative' }}>
             <Search size={16} style={{ position: 'absolute', left: '12px', top: '12px', color: '#94a3b8' }} />
             <input 
@@ -422,8 +454,14 @@ const Catalog = ({ user }) => {
                       />
                     </div>
                   </td>
-                  <td colSpan="8" style={{ padding: '1rem', background: '#f0f9ff' }}>
+                  <td colSpan="8" style={{ padding: '1rem', background: isIsolatedMode ? '#fef2f2' : '#f0f9ff' }}>
                     <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                      {isIsolatedMode ? (
+                        <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#ef4444' }}>
+                          <Link2 size={14} style={{ marginRight: '4px' }} /> Registro Aislado (Sin dependencia jerárquica)
+                        </div>
+                      ) : (
+                        <>
                       {activeTab === 'resultados' && (
                          <select 
                            style={{ minWidth: '250px', padding: '0.6rem', borderRadius: '10px', border: '2px solid #3b82f6', background: 'white', fontWeight: 800, color: '#1e40af', outline: 'none', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }} 
@@ -474,6 +512,8 @@ const Catalog = ({ user }) => {
                            {productos.map(p => <option key={p.id} value={p.id}>{p.name?.substring(0,40)}...</option>)}
                          </select>
                       )}
+                        </>
+                      )}
                       <button 
                         onClick={handleSave} 
                         style={{ 
@@ -499,14 +539,14 @@ const Catalog = ({ user }) => {
               <tr style={{ background: '#f1f5f9', borderBottom: '1px solid #e2e8f0' }}>
                 {(activeTab === 'tareas' || activeTab === 'tareas_aisladas') ? (
                   <>
-                    {activeTab === 'tareas' && (
+                    {activeTab === 'tareas' && !isIsolatedMode && (
                         <>
                             <th style={{ padding: '1rem', fontSize: '0.65rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase', minWidth: '180px' }}>RESULTADOS PROPUESTOS POR LA INSTITUCIÓN AL 2030 (MeGAs)</th>
                             <th style={{ padding: '1rem', fontSize: '0.65rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase', minWidth: '180px' }}>PRODUCTOS INTERMEDIOS PROPUESTOS POR LA ENTIDAD (100%)</th>
                             <th style={{ padding: '1rem', fontSize: '0.65rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase', minWidth: '180px' }}>ACTIVIDADES A REALIZAR</th>
                         </>
                     )}
-                    <th style={{ padding: '1rem', fontSize: '0.65rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase', minWidth: '180px' }}>{activeTab === 'tareas_aisladas' ? 'TAREAS AISLADAS' : 'TAREAS DE CUMPLIMIENTO'}</th>
+                    <th style={{ padding: '1rem', fontSize: '0.65rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase', minWidth: '180px' }}>{isIsolatedMode ? 'REGISTRO AISLADO' : 'TAREAS DE CUMPLIMIENTO'}</th>
                     <th style={{ textAlign: 'center', padding: '1rem', color: '#475569', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase' }}>PESO (%)</th>
                     <th style={{ textAlign: 'center', padding: '1rem', color: '#475569', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', minWidth: '110px' }}>INICIO / FIN</th>
                     <th style={{ textAlign: 'center', padding: '1rem', color: '#475569', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase' }}>MEDIO VERIF.</th>
@@ -534,21 +574,21 @@ const Catalog = ({ user }) => {
                 <tr><td colSpan="15" style={{ padding: '3rem', textAlign: 'center', color: '#64748b' }}>No se encontraron coincidencias</td></tr>
               ) : filteredData.map((item, idx) => (
                 <tr key={item.id} style={{ borderBottom: '1px solid #f1f5f9', fontSize: '0.8rem' }}>
-                  {(activeTab === 'tareas' || activeTab === 'tareas_aisladas') ? (
-                    <>
-                       {activeTab === 'tareas' && rowSpans['mega_name'] && rowSpans['mega_name'][idx] > 0 && (
-                         <td rowSpan={rowSpans['mega_name'][idx]} style={{ padding: '1.25rem 1rem', color: '#475569', fontWeight: 600, borderRight: '1px solid #f1f5f9', verticalAlign: 'top', background: 'white' }}>
-                           {item.mega_code} - {item.mega_name?.substring(0,80)}...
-                         </td>
-                       )}
-                       {activeTab === 'tareas' && rowSpans['producto_name'] && rowSpans['producto_name'][idx] > 0 && (
-                         <td rowSpan={rowSpans['producto_name'][idx]} style={{ padding: '1.25rem 1rem', color: '#64748b', borderRight: '1px solid #f1f5f9', verticalAlign: 'top', background: 'white' }}>
-                           {item.producto_name?.substring(0,100)}...
-                         </td>
-                       )}
-                       {activeTab === 'tareas' && <td style={{ padding: '1rem', color: '#64748b' }}>{item.actividad_name}</td>}
-                    </>
-                  ) : (
+                    {activeTab === 'tareas' && !isIsolatedMode && (
+                      <>
+                         {rowSpans['mega_name'] && rowSpans['mega_name'][idx] > 0 && (
+                           <td rowSpan={rowSpans['mega_name'][idx]} style={{ padding: '1.25rem 1rem', color: '#475569', fontWeight: 600, borderRight: '1px solid #f1f5f9', verticalAlign: 'top', background: 'white' }}>
+                             {item.mega_code} - {item.mega_name?.substring(0,80)}...
+                           </td>
+                         )}
+                         {rowSpans['producto_name'] && rowSpans['producto_name'][idx] > 0 && (
+                           <td rowSpan={rowSpans['producto_name'][idx]} style={{ padding: '1.25rem 1rem', color: '#64748b', borderRight: '1px solid #f1f5f9', verticalAlign: 'top', background: 'white' }}>
+                             {item.producto_name?.substring(0,100)}...
+                           </td>
+                         )}
+                         <td style={{ padding: '1rem', color: '#64748b' }}>{item.actividad_name}</td>
+                      </>
+                    )}
                     <td style={{ padding: '1.25rem' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                         {item.code && <span style={{ fontSize: '0.7rem', color: '#3b82f6', fontWeight: 900 }}>{item.code}</span>}
@@ -556,7 +596,6 @@ const Catalog = ({ user }) => {
                         {activeTab === 'megas' && <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Unidad: {item.unit_name || 'N/A'}</div>}
                       </div>
                     </td>
-                  )}
                   {activeTab === 'resultados' && (
                     <td style={{ padding: '1.25rem', fontSize: '0.85rem', color: '#64748b' }}>
                       <span style={{ background: '#fef3c7', padding: '0.3rem 0.75rem', borderRadius: '8px', fontWeight: 800, color: '#92400e', border: '1px solid #fde68a' }}>
@@ -702,7 +741,7 @@ const Catalog = ({ user }) => {
                </div>
                <div>
                  <h2 style={{ fontSize: '1.75rem', fontWeight: 900, color: '#0f172a', margin: 0, lineHeight: 1 }}>{(activeTab === 'tareas' || activeTab === 'tareas_aisladas') ? 'Ficha de Tareas' : 'Nuevo Registro'}</h2>
-                 <p style={{ color: '#64748b', fontSize: '0.85rem', marginTop: '0.3rem', fontWeight: 500 }}>Parametrización detallada de cumplimiento {(activeTab === 'tareas' || activeTab === 'tareas_aisladas') ? 'operativo' : 'estratégico'}</p>
+                 <p style={{ color: '#64748b', fontSize: '0.85rem', marginTop: '0.3rem', fontWeight: 500 }}>{isIsolatedMode ? 'Modo de Registro Aislado (Sin dependencias)' : 'Modo de Registro Jerárquico (Estructura Institucional)'}</p>
                </div>
             </div>
             
@@ -728,21 +767,21 @@ const Catalog = ({ user }) => {
                     </div>
 
                     {/* Dynamic Parent Linkage In Modal */}
-                    {['resultados', 'estrategias', 'megas', 'productos', 'actividades'].includes(activeTab) && (
+                    {!isIsolatedMode && ['resultados', 'estrategias', 'megas', 'productos', 'actividades'].includes(activeTab) && (
                       <div style={{ background: '#f0f9ff', padding: '1.5rem', borderRadius: '20px', border: '1px dashed #3b82f6' }}>
                         <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', fontWeight: 800, marginBottom: '0.8rem', color: '#1e40af' }}>
                           <Link2 size={18} /> Vinculación de Dependencia (Jerarquía)
                         </label>
                         
                         {activeTab === 'resultados' && (
-                          <select required style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '2px solid #3b82f6', fontWeight: 700 }} value={formData.eje_id || ''} onChange={e => setFormData({...formData, eje_id: e.target.value})}>
+                          <select required={!isIsolatedMode} style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '2px solid #3b82f6', fontWeight: 700 }} value={formData.eje_id || ''} onChange={e => setFormData({...formData, eje_id: e.target.value})}>
                             <option value="">Vincular a Eje Estratégico...</option>
                             {ejes.map(e => <option key={e.id} value={e.id}>{e.code}: {e.description?.substring(0,60)}...</option>)}
                           </select>
                         )}
 
                         {activeTab === 'estrategias' && (
-                          <select required style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '2px solid #3b82f6', fontWeight: 700 }} value={formData.resultado_id || ''} onChange={e => setFormData({...formData, resultado_id: e.target.value})}>
+                          <select required={!isIsolatedMode} style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '2px solid #3b82f6', fontWeight: 700 }} value={formData.resultado_id || ''} onChange={e => setFormData({...formData, resultado_id: e.target.value})}>
                             <option value="">Vincular a Resultado Padre...</option>
                             {resultados.map(r => <option key={r.id} value={r.id}>{r.code}: {r.description?.substring(0,60)}...</option>)}
                           </select>
@@ -750,7 +789,7 @@ const Catalog = ({ user }) => {
 
                         {activeTab === 'megas' && (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                            <select required style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '2px solid #3b82f6', fontWeight: 700 }} value={formData.estrategia_id || ''} onChange={e => setFormData({...formData, estrategia_id: e.target.value})}>
+                            <select required={!isIsolatedMode} style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '2px solid #3b82f6', fontWeight: 700 }} value={formData.estrategia_id || ''} onChange={e => setFormData({...formData, estrategia_id: e.target.value})}>
                               <option value="">Vincular a Estratégica Institucional...</option>
                               {estrategias.map(es => <option key={es.id} value={es.id}>{es.code}: {es.description?.substring(0,60)}...</option>)}
                             </select>
@@ -762,14 +801,14 @@ const Catalog = ({ user }) => {
                         )}
 
                         {activeTab === 'productos' && (
-                          <select required style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '2px solid #3b82f6', fontWeight: 700 }} value={formData.mega_id || ''} onChange={e => setFormData({...formData, mega_id: e.target.value})}>
+                          <select required={!isIsolatedMode} style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '2px solid #3b82f6', fontWeight: 700 }} value={formData.mega_id || ''} onChange={e => setFormData({...formData, mega_id: e.target.value})}>
                             <option value="">Vincular a MeGA (Resultado)...</option>
                             {megas.map(m => <option key={m.id} value={m.id}>{m.code}: {m.name?.substring(0,60)}...</option>)}
                           </select>
                         )}
 
                         {activeTab === 'actividades' && (
-                          <select required style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '2px solid #3b82f6', fontWeight: 700 }} value={formData.producto_id || ''} onChange={e => setFormData({...formData, producto_id: e.target.value})}>
+                          <select required={!isIsolatedMode} style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '2px solid #3b82f6', fontWeight: 700 }} value={formData.producto_id || ''} onChange={e => setFormData({...formData, producto_id: e.target.value})}>
                             <option value="">Vincular a Producto Intermedio...</option>
                             {productos.map(p => <option key={p.id} value={p.id}>{p.code}: {p.name?.substring(0,60)}...</option>)}
                           </select>
@@ -791,12 +830,9 @@ const Catalog = ({ user }) => {
                     </div>
 
                     <div style={{ display: 'flex', gap: '2rem', padding: '1rem', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, cursor: 'pointer' }}>
-                        <input type="checkbox" style={{ transform: 'scale(1.2)' }} checked={formData.is_isolated || false} onChange={e => {
-                          setFormData({...formData, is_isolated: e.target.checked, actividad_id: e.target.checked ? null : formData.actividad_id});
-                        }} />
-                        Es Tarea Aislada (No POA)
-                      </label>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, color: isIsolatedMode ? '#ef4444' : '#64748b' }}>
+                        <Link2 size={16} /> {isIsolatedMode ? 'Tarea en MODO AISLADO (Sin Actividad)' : 'Tarea en MODO JERÁRQUICO'}
+                      </div>
                       <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, cursor: 'pointer' }}>
                         <input type="checkbox" style={{ transform: 'scale(1.2)' }} checked={formData.is_hitos_mode || false} onChange={e => {
                           setFormData({...formData, is_hitos_mode: e.target.checked});
@@ -804,11 +840,11 @@ const Catalog = ({ user }) => {
                         Medición por Hitos (No Temporal)
                       </label>
                     </div>
-
-                    {!formData.is_isolated && (
+                    
+                    {!isIsolatedMode && (
                       <div>
                         <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, marginBottom: '0.6rem', color: '#475569' }}>Actividad Padre vinculada</label>
-                        <select required={!formData.is_isolated} style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '1px solid #cbd5e1', background: '#f8fafc', fontWeight: 600 }} value={formData.actividad_id || ''} onChange={e => setFormData({...formData, actividad_id: e.target.value})}>
+                        <select required={!isIsolatedMode} style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '1px solid #cbd5e1', background: '#f8fafc', fontWeight: 600 }} value={formData.actividad_id || ''} onChange={e => setFormData({...formData, actividad_id: e.target.value})}>
                           <option value="">Seleccionar de la lista de actividades...</option>
                           {actividades.map(a => (
                             <option key={a.id} value={a.id}>MeGA: {a.mega_code} / Prod: {a.producto_name?.substring(0,40)}... / Act: {a.name}</option>
