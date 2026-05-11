@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Database, ChevronRight, Edit2, Trash2, Layers, Building, Search, ClipboardCheck, Shield, LayoutGrid, FileText, Link2 } from 'lucide-react';
+import { Plus, Database, ChevronRight, Edit2, Trash2, Layers, Building, Search, ClipboardCheck, Shield, LayoutGrid, FileText, Link2, Paperclip } from 'lucide-react';
 import axios from 'axios';
 import HierarchyTree from '../components/HierarchyTree';
 import { ORGANIGRAM } from './organigram';
@@ -138,8 +138,11 @@ const Catalog = ({ user }) => {
 
   const generatePlanograma = (overrideData = null) => {
     const contextData = overrideData || formData;
-    if (!contextData.fecha_inicio || !contextData.fecha_fin || !contextData.ponderacion_producto) {
-      if (!overrideData) setAlertDialog({ isOpen: true, type: 'error', message: 'Para autocalcular el cronograma, primero defina Fecha Inicio, Fecha Fin y Peso %.' });
+    const isHitos = contextData.is_hitos_mode;
+    const targetValue = isHitos ? contextData.hitos_total : contextData.ponderacion_producto;
+
+    if (!contextData.fecha_inicio || !contextData.fecha_fin || !targetValue) {
+      if (!overrideData) setAlertDialog({ isOpen: true, type: 'error', message: `Para autocalcular el cronograma, primero defina Fecha Inicio, Fecha Fin y ${isHitos ? 'Meta (Peso o Hitos)' : 'Peso %'}.` });
       return;
     }
     const s = new Date(contextData.fecha_inicio);
@@ -154,10 +157,8 @@ const Catalog = ({ user }) => {
     
     if (tipo === 'Semanal') {
       let cur = new Date(s);
-      // Ensure we start from the beginning of the range and count weeks correctly
       while (cur <= e) {
         periods++;
-        // Move to the next week (7 days)
         cur.setDate(cur.getDate() + 7);
       }
       periods = Math.max(1, periods);
@@ -171,35 +172,30 @@ const Catalog = ({ user }) => {
       periods = Math.max(1, periods);
     }
     
-    const pesoTotal = parseFloat(contextData.ponderacion_producto || 0);
-    if (isNaN(pesoTotal) || pesoTotal <= 0) {
-      if (!overrideData) setAlertDialog({ isOpen: true, type: 'error', message: 'El peso de la tarea debe ser un número mayor a 0.' });
-      return;
-    }
+    const plan = [];
+    const valPerPeriod = (parseFloat(targetValue) / periods).toFixed(isHitos ? 0 : 2);
+    let currentSum = 0;
 
-    const split = parseFloat((pesoTotal / periods).toFixed(2));
-    const newPlan = [];
-    let sumSoFar = 0;
-    
     for (let i = 1; i <= periods; i++) {
+        let val = parseFloat(valPerPeriod);
         if (i === periods) {
-            newPlan.push({ periodo: i, valor: parseFloat((pesoTotal - sumSoFar).toFixed(2)) });
-        } else {
-            newPlan.push({ periodo: i, valor: split });
-            sumSoFar += split;
+            val = (parseFloat(targetValue) - currentSum).toFixed(isHitos ? 0 : 2);
         }
+        plan.push({ periodo: i, valor: val });
+        currentSum += parseFloat(val);
     }
-    setFormData({ ...contextData, planograma: newPlan, tipo_avance: tipo });
+    setFormData({ ...contextData, planograma: plan, tipo_avance: tipo });
   };
 
   const handleSave = async (e) => {
     e.preventDefault();
     setError(null);
     try {
-      if (activeTab === 'tareas' && formData.planograma && formData.planograma.length > 0) {
+      if (formData.planograma) {
         const sum = formData.planograma.reduce((acc, p) => acc + parseFloat(p.valor || 0), 0);
-        if (Math.abs(sum - parseFloat(formData.ponderacion_producto)) > 0.05) {
-            setError(`La suma del Cronograma (${sum.toFixed(2)}%) no coincide con el Peso de la Tarea (${formData.ponderacion_producto}%).`);
+        const target = formData.is_hitos_mode ? parseFloat(formData.hitos_total) : parseFloat(formData.ponderacion_producto);
+        if (Math.abs(sum - target) > 0.05) {
+            setError(`La suma del Cronograma (${sum.toFixed(2)}) no coincide con la Meta (${target}).`);
             return;
         }
       }
@@ -910,10 +906,10 @@ const Catalog = ({ user }) => {
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1.5rem' }}>
                       <div>
-                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, marginBottom: '0.6rem', color: '#475569' }}>Peso % (0-100)</label>
-                        <input type="number" step="0.1" required style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '1px solid #cbd5e1', fontWeight: 900, color: '#2563eb' }} value={formData.ponderacion_producto || ''} onChange={e => {
+                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, marginBottom: '0.6rem', color: '#475569' }}>{formData.is_hitos_mode ? 'Meta Total (Hitos)' : 'Peso % (0-100)'}</label>
+                        <input type="number" step={formData.is_hitos_mode ? "1" : "0.1"} required style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '1px solid #cbd5e1', fontWeight: 900, color: '#2563eb' }} value={formData.is_hitos_mode ? (formData.hitos_total || '') : (formData.ponderacion_producto || '')} onChange={e => {
                           const val = parseFloat(e.target.value) || 0;
-                          const nd = {...formData, ponderacion_producto: val};
+                          const nd = formData.is_hitos_mode ? {...formData, hitos_total: val} : {...formData, ponderacion_producto: val};
                           if (formData.planograma) generatePlanograma(nd); else setFormData(nd);
                         }} />
                       </div>
@@ -935,35 +931,35 @@ const Catalog = ({ user }) => {
                       </div>
                     </div>
 
-                    {formData.is_hitos_mode ? (
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '1.5rem' }}>
                       <div>
-                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, marginBottom: '0.6rem', color: '#475569' }}>Total de Hitos (Cantidad numérica a cumplir)</label>
-                        <input type="number" required={formData.is_hitos_mode} min="1" placeholder="Ej: 5" style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '1px solid #cbd5e1', fontWeight: 900, color: '#10b981' }} value={formData.hitos_total || ''} onChange={e => setFormData({...formData, hitos_total: parseInt(e.target.value) || 0})} />
+                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, marginBottom: '0.6rem', color: '#475569' }}>Tipo de Avance</label>
+                        <select style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '1px solid #cbd5e1' }} value={formData.tipo_avance || 'Semanal'} onChange={e => {
+                          const nd = {...formData, tipo_avance: e.target.value};
+                          if (formData.planograma) generatePlanograma(nd); else setFormData(nd);
+                        }}>
+                          <option value="Semanal">Temporal (Semanas)</option>
+                          <option value="Diario">Temporal (Días)</option>
+                        </select>
                       </div>
-                    ) : (
-                      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '1.5rem' }}>
-                        <div>
-                          <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, marginBottom: '0.6rem', color: '#475569' }}>Tipo de Avance</label>
-                          <select style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '1px solid #cbd5e1' }} value={formData.tipo_avance || 'Semanal'} onChange={e => {
-                            const nd = {...formData, tipo_avance: e.target.value};
-                            if (formData.planograma) generatePlanograma(nd); else setFormData(nd);
-                          }}>
-                            <option value="Semanal">Semanal (Recomendado)</option>
-                            <option value="Diario">Diario</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, marginBottom: '0.6rem', color: '#475569' }}>Medio de Verificación</label>
-                          <input placeholder="Ej: Link Google Drive, Informe..." style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '1px solid #cbd5e1' }} value={formData.medio_verificacion || ''} onChange={e => setFormData({...formData, medio_verificacion: e.target.value})} />
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, marginBottom: '0.6rem', color: '#475569' }}>Medio de Verificación (Archivo / Link)</label>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <input placeholder="Ej: Link Google Drive..." style={{ flex: 1, padding: '1rem', borderRadius: '14px', border: '1px solid #cbd5e1' }} value={formData.medio_verificacion || ''} onChange={e => setFormData({...formData, medio_verificacion: e.target.value})} />
+                          <input type="file" id="fileUpload" style={{ display: 'none' }} onChange={e => setFormData({...formData, evidence_file: e.target.files[0], medio_verificacion: e.target.files[0].name})} />
+                          <button type="button" onClick={() => document.getElementById('fileUpload').click()} style={{ padding: '0.5rem 1rem', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '12px', cursor: 'pointer' }}>
+                             <Paperclip size={18} />
+                          </button>
                         </div>
                       </div>
+                    </div>
                     )}
 
-                    {!formData.is_hitos_mode && (
-                      <div style={{ background: '#f8fafc', padding: '1.5rem', borderRadius: '24px', border: '1px solid #e2e8f0' }}>
+                    <div style={{ background: '#f8fafc', padding: '1.5rem', borderRadius: '24px', border: '1px solid #e2e8f0' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                         <h4 style={{ fontSize: '1rem', fontWeight: 800, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <LayoutGrid size={20} color="#3b82f6" /> Cronograma de Planificación
+                          <LayoutGrid size={20} color="#3b82f6" /> {formData.is_hitos_mode ? 'Cronograma de Hitos' : 'Cronograma de Planificación'}
                         </h4>
                         <button type="button" onClick={() => generatePlanograma()} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#3b82f6', color: 'white', border: 'none', padding: '0.6rem 1rem', borderRadius: '12px', fontWeight: 800, cursor: 'pointer', fontSize: '0.75rem' }}>
                           Auto-Calcular
@@ -985,7 +981,6 @@ const Catalog = ({ user }) => {
                          </div>
                       )}
                     </div>
-                    )}
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
                       <div>
