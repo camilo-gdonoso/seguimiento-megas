@@ -48,10 +48,6 @@ const Catalog = ({ user }) => {
     { id: 'productos', label: 'Productos', icon: Database, group: 'Operativo' },
     { id: 'actividades', label: 'Actividades', icon: Layers, group: 'Operativo' },
     { id: 'tareas', label: 'Tareas / Matriz', icon: ClipboardCheck, group: 'Operativo' },
-    { id: 'organigrama', label: 'Estructura', icon: Building, group: 'Base' },
-    { id: 'ejes', label: 'Ejes', icon: Database, group: 'Base' },
-    { id: 'resultados', label: 'Resultados', icon: Layers, group: 'Base' },
-    { id: 'estrategias', label: 'Estrategias', icon: Layers, group: 'Base' },
   ];
 
   const resourceMap = {
@@ -264,7 +260,19 @@ const Catalog = ({ user }) => {
 
   const filteredData = data.filter(item => {
     const searchLower = searchTerm.toLowerCase();
-    const matchSearch = (item.name || item.description || item.code || '').toLowerCase().includes(searchLower);
+    
+    // Global search across multiple fields
+    const matchSearch = (
+      (item.name || '') + ' ' + 
+      (item.description || '') + ' ' + 
+      (item.code || '') + ' ' + 
+      (item.mega_name || '') + ' ' + 
+      (item.producto_name || '') + ' ' + 
+      (item.actividad_name || '') + ' ' + 
+      (item.responsable_nombre || '') + ' ' + 
+      (item.responsable_directo || '') + ' ' +
+      (item.director_responsable || '')
+    ).toLowerCase().includes(searchLower);
     
     // Mode Filter
     const matchMode = Boolean(item.is_isolated) === isIsolatedMode;
