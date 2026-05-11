@@ -861,7 +861,7 @@ app.post('/api/login', async (req, res) => {
 // Seed function for critical users 
 async function ensureAdmin() {
     try {
-        await pool.query("INSERT INTO usuarios (username, password, role, fullname, unit_id) VALUES ('admin', 'admin123', 'Admin', 'Administrador MeGAs', 1) ON CONFLICT (username) DO NOTHING");
+        await pool.query("INSERT INTO usuarios (username, password, role, fullname, unit_id) VALUES ('admin', 'admin123', 'Admin', 'Administrador de Sistema', 1) ON CONFLICT (username) DO NOTHING");
         await pool.query("INSERT INTO usuarios (username, password, role, fullname, unit_id) VALUES ('perez', 'perez123', 'Director', 'Director Pérez', 11) ON CONFLICT (username) DO NOTHING");
         console.log('--- Resgate de Credenciales OK ---');
     } catch(e) { console.error('Seed error:', e); }

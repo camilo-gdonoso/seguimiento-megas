@@ -119,13 +119,13 @@ const Layout = ({ children, user, onLogout }) => {
               borderRadius: '16px', 
               border: '1px solid #f1f5f9'
             }}>
-              <p style={{ fontSize: '0.85rem', fontWeight: 800, color: '#1e293b', marginBottom: '2px' }}>{user?.fullname}</p>
-              <p style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 600 }}>{user?.cargo || 'Funcionario Público'}</p>
+              <p style={{ fontSize: '0.85rem', fontWeight: 800, color: '#1e293b', marginBottom: '2px' }}>{user?.fullname === 'Administrador MeGAs' ? 'Administrador de Sistema' : user?.fullname}</p>
+              <p style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 600 }}>{user?.cargo || (user?.role === 'Admin' ? 'Administrador de Sistema' : 'Funcionario Público')}</p>
               <div style={{ 
                 marginTop: '8px', padding: '4px 8px', background: 'white', borderRadius: '6px', 
                 fontSize: '0.6rem', color: 'var(--primary)', fontWeight: 800, border: '1px solid #dbeafe', display: 'inline-block' 
               }}>
-                {user?.role === 'Admin' ? 'ADMINISTRADOR' : (user?.role === 'Director' ? 'DIRECTOR' : 'TÉCNICO')}
+                {user?.role === 'Admin' ? 'ADMINISTRADOR DE SISTEMA' : (user?.role === 'Director' ? 'DIRECTOR' : 'TÉCNICO')}
               </div>
             </div>
           )}

@@ -33,7 +33,7 @@ const Sidebar = () => {
     };
 
     const roleLabels = {
-        'Admin': 'Administrador MeGAs',
+        'Admin': 'Administrador de Sistema',
         'Director': 'Director General',
         'Tecnico': 'Técnico / Operador'
     };
