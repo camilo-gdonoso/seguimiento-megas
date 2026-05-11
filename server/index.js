@@ -333,6 +333,7 @@ const registerCrud = (resource, tableName) => {
         const fields = filterValidFields(req.body);
         const values = fields.map(f => {
             const val = req.body[f];
+            if (val === '') return null; // Handle empty strings as NULL for unique constraints
             if (val && typeof val === 'object') return JSON.stringify(val);
             return val;
         });
@@ -357,6 +358,7 @@ const registerCrud = (resource, tableName) => {
         const fields = filterValidFields(req.body);
         const values = [...fields.map(f => {
             const val = req.body[f];
+            if (val === '') return null; // Handle empty strings as NULL
             if (val && typeof val === 'object') return JSON.stringify(val);
             return val;
         }), id];
