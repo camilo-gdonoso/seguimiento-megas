@@ -60,6 +60,45 @@ describe('Tareas API Endpoints', () => {
         });
     });
 
+    describe('PUT /api/tareas/:id (Generic CRUD)', () => {
+        it('should strip out virtual columns like avances and estado_calculado to prevent SQL errors', async () => {
+            // Mock pool.query
+            pool.query = jest.fn()
+                // 1st call: SELECT oldRecord to ensure it exists
+                .mockResolvedValueOnce({ rows: [{ id: 1, actividad_id: 1, name: 'Tarea Old' }] })
+                // 2nd call: UPDATE
+                .mockResolvedValueOnce({ rows: [{ id: 1, name: 'Tarea Modificada' }] });
+
+            const res = await request(app)
+                .put('/api/tareas/1')
+                .send({
+                    name: 'Tarea Modificada',
+                    ponderacion_producto: 50,
+                    avances: [{ semana: 1, avance_real: 10 }],
+                    estado_calculado: 'En Proceso',
+                    avances_historico: [{ estado: 'Aprobado' }]
+                });
+
+            expect(res.statusCode).toEqual(200);
+            expect(res.body.name).toBe('Tarea Modificada');
+            expect(pool.query).toHaveBeenCalledTimes(2); // SELECT + UPDATE
+            
+            const updateQuery = pool.query.mock.calls[1][0];
+            const updateValues = pool.query.mock.calls[1][1];
+            
+            expect(updateQuery).toContain('UPDATE tareas SET');
+            expect(updateQuery).toContain('name =');
+            expect(updateQuery).toContain('ponderacion_producto =');
+            // The forbidden columns should NOT be in the SQL
+            expect(updateQuery).not.toContain('avances =');
+            expect(updateQuery).not.toContain('estado_calculado =');
+            expect(updateQuery).not.toContain('avances_historico =');
+            
+            // Validate that we only passed the allowed values plus the ID
+            expect(updateValues.length).toBe(3); // name, ponderacion_producto, ID
+        });
+    });
+
     describe('GET /api/dashboard-stats', () => {
         it('should return delayed_tasks successfully', async () => {
             pool.query = jest.fn((query) => {

@@ -370,16 +370,15 @@ const Monitoring = ({ user }) => {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#f1f5f9', borderBottom: '2px solid #e2e8f0' }}>
-                <th style={{ padding: '1rem', fontSize: '0.65rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase', minWidth: '180px' }}>RESULTADOS PROPUESTOS POR LA INSTITUCIÓN AL 2030 (MeGAs)</th>
-                <th style={{ padding: '1rem', fontSize: '0.65rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase', minWidth: '180px' }}>PRODUCTOS INTERMEDIOS PROPUESTOS POR LA ENTIDAD (100%)</th>
+                <th style={{ textAlign: 'left', padding: '1.5rem', color: '#475569', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase' }}>RESPONSABLE</th>
+                <th style={{ padding: '1rem', fontSize: '0.65rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase', minWidth: '180px' }}>RESULTADOS</th>
+                <th style={{ padding: '1rem', fontSize: '0.65rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase', minWidth: '180px' }}>PRODUCTOS</th>
                 <th style={{ padding: '1rem', fontSize: '0.65rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase', minWidth: '180px' }}>ACTIVIDADES A REALIZAR</th>
                 <th style={{ padding: '1rem', fontSize: '0.65rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase', minWidth: '180px' }}>TAREAS DE CUMPLIMIENTO</th>
                 <th style={{ textAlign: 'center', padding: '1rem', color: '#475569', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase' }}>PESO (%)</th>
                 <th style={{ textAlign: 'center', padding: '1rem', color: '#475569', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', minWidth: '100px' }}>INICIO / FIN</th>
                 <th style={{ textAlign: 'center', padding: '1rem', color: '#475569', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase' }}>MEDIO VERIF.</th>
-                <th style={{ textAlign: 'center', padding: '1rem', color: '#475569', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase' }}>AVANCE (PLAN Vs REAL)</th>
                 <th style={{ textAlign: 'center', padding: '1rem', color: '#475569', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', minWidth: '120px' }}>PROGRESO</th>
-                <th style={{ textAlign: 'left', padding: '1.5rem', color: '#475569', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase' }}>RESPONSABLE</th>
               </tr>
             </thead>
             <tbody>
@@ -402,6 +401,17 @@ const Monitoring = ({ user }) => {
                       transition={{ delay: idx * 0.05 }}
                       style={{ borderBottom: '1px solid #f1f5f9', background: idx % 2 === 0 ? 'white' : '#fcfdfe' }}
                     >
+                      <td style={{ padding: '1.5rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                          <div style={{ width: '40px', height: '40px', background: '#eff6ff', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2563eb', border: '1px solid #dbeafe' }}>
+                            <User size={20} />
+                          </div>
+                          <div style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#1e293b', whiteSpace: 'nowrap' }}>{row.responsable_nombre || 'Sin asignar'}</div>
+                            <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600, whiteSpace: 'nowrap' }}>{row.responsable_cargo}</div>
+                          </div>
+                        </div>
+                      </td>
                        {(() => {
                         const rowSpans = (data) => {
                           const fields = ['mega_name', 'producto_name'];
@@ -456,195 +466,6 @@ const Monitoring = ({ user }) => {
                          {row.medio_verificacion || '--'}
                       </td>
                       
-                      <td style={{ textAlign: 'left', padding: '0.5rem' }}>
-                        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', justifyContent: 'center' }}>
-                          {(() => {
-                            let parsedPlan = [];
-                            try {
-                              parsedPlan = typeof row.planograma === 'string' ? JSON.parse(row.planograma) : (row.planograma || []);
-                            } catch (e) { parsedPlan = []; }
-                            
-                            if (parsedPlan.length === 0) return <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontStyle: 'italic' }}>Sin planificación</span>;
-
-                            return parsedPlan.map((p) => {
-                              const sem = p.periodo; 
-                              const avData = getAvanceData(row, sem);
-                              const realAvance = avData.avance;
-                              const planAvance = parseFloat(p.valor || 0);
-                              
-                              const canValidate = (user?.role?.toLowerCase().includes('admin') || user?.role?.toLowerCase().includes('director')) && avData.id;
-                              const isAuditor = user?.role?.toLowerCase().includes('auditor');
-                              const statusColor = avData.estado === 'Aprobado' ? '#10b981' : (avData.estado === 'Rechazado' ? '#ef4444' : (avData.estado === 'Reportado' ? '#3b82f6' : '#94a3b8'));
-                              const bgReal = avData.estado === 'Aprobado' ? '#dcfce7' : (avData.estado === 'Reportado' ? '#dbeafe' : (avData.estado === 'Rechazado' ? '#fee2e2' : (realAvance > 0 ? '#fef9c3' : '#f1f5f9')));
-                              const colorReal = avData.estado === 'Aprobado' ? '#166534' : (avData.estado === 'Reportado' ? '#1e40af' : (avData.estado === 'Rechazado' ? '#991b1b' : (realAvance > 0 ? '#854d0e' : '#64748b')));
-
-                              return (
-                                <div key={sem} style={{ 
-                                  minWidth: '95px', 
-                                  display: 'flex', 
-                                  flexDirection: 'column', 
-                                  alignItems: 'center', 
-                                  padding: '0.6rem 0.4rem', 
-                                  background: '#f8fafc',
-                                  borderRadius: '12px',
-                                  border: '1px solid #e2e8f0'
-                                }}>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '4px' }}>
-                                    <span style={{ fontSize: '0.65rem', fontWeight: 900, color: '#475569' }}>
-                                      {row.is_hitos_mode ? 'Hito' : (row.tipo_avance === 'Diario' ? 'D' : 'S')}{sem}
-                                    </span>
-                                    {avData.id && (
-                                      <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: statusColor }} title={avData.estado} />
-                                    )}
-                                  </div>
-                                  
-                                  <div style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 600, marginBottom: '6px' }}>
-                                    Plan: <span style={{ color: '#0f172a' }}>{planAvance}%</span>
-                                  </div>
-
-                                  {editingCell?.tareaId === row.id && editingCell?.semana === sem && !isAuditor ? (
-                                    <input 
-                                      autoFocus
-                                      type="number" step="0.1"
-                                      style={{ width: '55px', padding: '0.3rem', fontSize: '0.8rem', textAlign: 'center', borderRadius: '6px', border: '2px solid #3b82f6', outline: 'none', fontWeight: 800 }}
-                                      defaultValue={realAvance}
-                                      onBlur={(e) => handleUpdateAvance(row.id, sem, e.target.value)}
-                                      onKeyDown={(e) => e.key === 'Enter' && handleUpdateAvance(row.id, sem, e.target.value)}
-                                    />
-                                  ) : (
-                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                        <span 
-                                          onClick={() => {
-                                            if (!isAuditor && avData.estado !== 'Aprobado') {
-                                              setReportDialog({
-                                                isOpen: true,
-                                                tareaId: row.id,
-                                                semana: sem,
-                                                progress: realAvance > 0 ? realAvance : planAvance,
-                                                evidence: avData.evidencia || '',
-                                                obs: avData.observacion || '',
-                                                rowName: row.name
-                                              });
-                                            }
-                                          }}
-                                          onDoubleClick={() => !isAuditor && setEditingCell({ tareaId: row.id, semana: sem })}
-                                          title={isAuditor ? "Solo lectura" : "Clic: Reportar Avance Completo | Doble Clic: Editar rápido"}
-                                          style={{ 
-                                            cursor: isAuditor ? 'default' : 'pointer', 
-                                            fontSize: '0.85rem', 
-                                            fontWeight: 800, 
-                                            background: bgReal, 
-                                            color: colorReal, 
-                                            padding: '0.35rem 0.65rem', 
-                                            borderRadius: '8px', 
-                                            border: `1px solid ${colorReal}40`, 
-                                            transition: 'all 0.2s',
-                                            opacity: avData.estado === 'Aprobado' ? 0.7 : 1,
-                                            userSelect: 'none',
-                                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)'
-                                          }}
-                                        >
-                                          {realAvance}%
-                                        </span>
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                          <MessageSquare 
-                                            size={11} 
-                                            onClick={() => !isAuditor && setObsDialog({ isOpen: true, tareaId: row.id, semana: sem, text: avData.observacion || '' })}
-                                            style={{ 
-                                              cursor: isAuditor ? 'default' : 'pointer', 
-                                              color: avData.observacion ? '#2563eb' : '#cbd5e1'
-                                            }} 
-                                            title={avData.observacion || 'Observaciones'}
-                                          />
-                                          <Paperclip 
-                                            size={12} 
-                                            style={{ 
-                                              color: avData.evidencia ? '#2563eb' : '#cbd5e1', 
-                                              cursor: 'pointer',
-                                              background: avData.evidencia ? '#dbeafe' : 'transparent',
-                                              padding: '2px',
-                                              borderRadius: '4px'
-                                            }}
-                                            onClick={() => {
-                                              if (avData.evidencia && (user?.role === 'Director' || user?.role === 'Admin' || user?.role === 'Auditor')) {
-                                                window.open(avData.evidencia, '_blank');
-                                              } else {
-                                                const url = window.prompt("URL de Evidencia (Link a Reporte/Drive):", avData.evidencia || "");
-                                                if (url !== null && !isAuditor) {
-                                                   axios.post(`${API_URL}/avances-semanales`, {
-                                                     tarea_id: row.id,
-                                                     semana: sem,
-                                                     avance_real: realAvance,
-                                                     evidencia_url: url
-                                                   }).then(() => fetchData());
-                                                }
-                                              }
-                                            }}
-                                            title={avData.evidencia ? "Ver Evidencia" : "Subir Evidencia"}
-                                          />
-                                        </div>
-                                      </div>
-
-                                      {canValidate && avData.estado === 'Reportado' && (
-                                        <div style={{ display: 'flex', gap: '6px', marginTop: '6px' }}>
-                                          <button 
-                                            onClick={() => handleValidateAvance(avData.id, 'Aprobado')}
-                                            style={{ padding: '4px 6px', borderRadius: '8px', background: '#dcfce7', color: '#166534', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px', fontSize: '0.65rem', fontWeight: 800 }}
-                                            title="Aprobar cumplimiento"
-                                          >
-                                            <Check size={12} /> OK
-                                          </button>
-                                          <button 
-                                            onClick={() => handleValidateAvance(avData.id, 'Rechazado')}
-                                            style={{ padding: '4px 6px', borderRadius: '8px', background: '#fee2e2', color: '#991b1b', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px', fontSize: '0.65rem', fontWeight: 800 }}
-                                            title="Rechazar y pedir corrección"
-                                          >
-                                            <XCircle size={12} /> NO
-                                          </button>
-                                        </div>
-                                      )}
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            });
-                          })()}
-                        </div>
-                      </td>
-
-                      <td style={{ textAlign: 'center', padding: '1.5rem' }}>
-                        <div style={{ width: '100px', margin: '0 auto' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '0.5rem' }}>
-                            <span style={{ fontSize: '0.85rem', fontWeight: 900, color: '#1e293b' }}>
-                              {row.ponderacion_producto ? ((parseFloat(row.avance_fisico || 0) / parseFloat(row.ponderacion_producto)) * 100).toFixed(1) : 0}%
-                            </span>
-                          </div>
-                          <div style={{ height: '8px', width: '100%', background: '#f1f5f9', borderRadius: '10px', overflow: 'hidden', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.05)' }}>
-                            <motion.div 
-                              initial={{ width: 0 }} 
-                              animate={{ width: `${Math.min(100, row.ponderacion_producto ? ((parseFloat(row.avance_fisico || 0) / parseFloat(row.ponderacion_producto)) * 100) : 0)}%` }} 
-                              style={{ 
-                                height: '100%', 
-                                background: parseFloat(row.avance_fisico || 0) >= parseFloat(row.ponderacion_producto || 100)
-                                  ? 'linear-gradient(90deg, #10b981, #34d399)' 
-                                  : 'linear-gradient(90deg, #3b82f6, #60a5fa)',
-                                borderRadius: '10px'
-                              }}
-                            />
-                          </div>
-                        </div>
-                      </td>
-
-                      <td style={{ padding: '1.5rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                          <div style={{ width: '40px', height: '40px', background: '#eff6ff', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2563eb', border: '1px solid #dbeafe' }}>
-                            <User size={20} />
-                          </div>
-                          <div style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#1e293b', whiteSpace: 'nowrap' }}>{row.responsable_nombre || 'Sin asignar'}</div>
-                            <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600, whiteSpace: 'nowrap' }}>{row.responsable_cargo}</div>
-                          </div>
                         </div>
                       </td>
                     </motion.tr>

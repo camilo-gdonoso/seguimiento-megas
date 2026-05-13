@@ -53,7 +53,7 @@ const Catalog = ({ user }) => {
   }, [alertDialog]);
 
   const tabs = [
-    { id: 'megas', label: 'MeGAs (2030)', icon: Layers, group: 'Operativo' },
+    { id: 'megas', label: 'Resultados', icon: Layers, group: 'Operativo' },
     { id: 'productos', label: 'Productos', icon: Database, group: 'Operativo' },
     { id: 'actividades', label: 'Actividades', icon: Layers, group: 'Operativo' },
     { id: 'tareas', label: 'Tareas / Matriz', icon: ClipboardCheck, group: 'Operativo' },
@@ -179,7 +179,8 @@ const Catalog = ({ user }) => {
             return;
         }
       }
-      const resource = resourceMap[activeTab];
+      // Fix for Observation 13: Isolated mode always creates tasks
+      const resource = isIsolatedMode ? 'tareas' : resourceMap[activeTab];
       let dataToSave = { ...formData, is_isolated: isIsolatedMode };
 
       // Handle File Upload if exists
@@ -343,6 +344,13 @@ const Catalog = ({ user }) => {
         return matchSearch && Number(item.unit_id) === Number(user?.unit_id);
     }
     return matchSearch;
+  }).sort((a, b) => {
+    if (isIsolatedMode && (activeTab === 'tareas' || activeTab === 'tareas_aisladas')) {
+      const nameA = a.responsable_nombre || 'Sin Asignar';
+      const nameB = b.responsable_nombre || 'Sin Asignar';
+      return nameA.localeCompare(nameB);
+    }
+    return 0;
   });
 
   const isDirector = user?.role?.toLowerCase().includes('director');
@@ -378,7 +386,9 @@ const Catalog = ({ user }) => {
     });
     return rowSpans;
   };
-  const rowSpans = activeTab === 'tareas' ? getRowSpans(filteredData, ['mega_name', 'producto_name']) : {};
+  const rowSpans = (activeTab === 'tareas' || activeTab === 'tareas_aisladas') 
+    ? (isIsolatedMode ? getRowSpans(filteredData, ['responsable_nombre']) : getRowSpans(filteredData, ['mega_name', 'producto_name'])) 
+    : {};
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
@@ -391,7 +401,13 @@ const Catalog = ({ user }) => {
            <div className="glass-card" style={{ padding: '0.4rem 0.8rem', display: 'flex', gap: '0.75rem', alignItems: 'center', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
               <span style={{ fontSize: '0.75rem', fontWeight: 800, color: isIsolatedMode ? '#94a3b8' : 'var(--primary)' }}>Jerárquico</span>
               <button 
-                onClick={() => setIsIsolatedMode(!isIsolatedMode)}
+                onClick={() => {
+                  const newIsolatedMode = !isIsolatedMode;
+                  setIsIsolatedMode(newIsolatedMode);
+                  if (newIsolatedMode && activeTab !== 'tareas' && activeTab !== 'tareas_aisladas') {
+                    setActiveTab('tareas');
+                  }
+                }}
                 style={{ 
                   width: '40px', height: '20px', borderRadius: '10px', background: isIsolatedMode ? 'var(--primary)' : '#cbd5e1', 
                   border: 'none', position: 'relative', cursor: 'pointer', transition: 'all 0.3s' 
@@ -410,7 +426,12 @@ const Catalog = ({ user }) => {
               type="text" 
               placeholder="Buscar..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                if (e.target.value.trim().length > 0 && activeTab !== 'tareas' && activeTab !== 'tareas_aisladas') {
+                  setActiveTab('tareas');
+                }
+              }}
               style={{
                 padding: '0.6rem 1rem 0.6rem 2.5rem', border: '1px solid #e2e8f0',
                 borderRadius: '8px', fontSize: '0.9rem', outline: 'none'
@@ -441,37 +462,38 @@ const Catalog = ({ user }) => {
       </header>
 
       {/* Tabs Layout */}
-      <div style={{ display: 'flex', gap: '2rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
-        {[
-          { name: 'GESTIÓN OPERATIVA', group: 'Operativo' },
-          { name: 'BASE INSTITUCIONAL', group: 'Base' }
-        ].map(section => (
-          <div key={section.name} style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', flex: 1, minWidth: '350px' }}>
-            <span style={{ fontSize: '0.7rem', fontWeight: 900, color: '#94a3b8', letterSpacing: '0.15em', paddingLeft: '0.5rem' }}>
-              {section.name}
-            </span>
-            <div className="glass-card" style={{ padding: '0.4rem', borderRadius: '16px', display: 'flex', gap: '0.3rem', background: '#f8fafc', border: '1px solid #f1f5f9' }}>
-               {tabs.filter(t => t.group === section.group).map(tab => (
-                 <button
-                   key={tab.id}
-                   onClick={() => setActiveTab(tab.id)}
-                   style={{
-                     flex: 1, padding: '0.6rem 0.6rem', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
-                     background: activeTab === tab.id ? 'var(--primary)' : 'transparent',
-                     color: activeTab === tab.id ? 'white' : '#64748b',
-                     transition: 'all 0.2s',
-                     border: 'none', outline: 'none', cursor: 'pointer',
-                     fontWeight: 700, fontSize: '0.75rem',
-                     boxShadow: activeTab === tab.id ? '0 10px 15px -3px rgba(37, 99, 235, 0.2)' : 'none'
-                   }}
-                 >
-                   <tab.icon size={14} /> {tab.label}
-                 </button>
-               ))}
+      {!isIsolatedMode && (
+        <div style={{ display: 'flex', gap: '2rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
+          {[
+            { name: 'GESTIÓN OPERATIVA', group: 'Operativo' }
+          ].map(section => (
+            <div key={section.name} style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', flex: 1, minWidth: '350px' }}>
+              <span style={{ fontSize: '0.7rem', fontWeight: 900, color: '#94a3b8', letterSpacing: '0.15em', paddingLeft: '0.5rem' }}>
+                {section.name}
+              </span>
+              <div className="glass-card" style={{ padding: '0.4rem', borderRadius: '16px', display: 'flex', gap: '0.3rem', background: '#f8fafc', border: '1px solid #f1f5f9' }}>
+                 {tabs.filter(t => t.group === section.group).map(tab => (
+                   <button
+                     key={tab.id}
+                     onClick={() => setActiveTab(tab.id)}
+                     style={{
+                       flex: 1, padding: '0.6rem 0.6rem', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                       background: activeTab === tab.id ? 'var(--primary)' : 'transparent',
+                       color: activeTab === tab.id ? 'white' : '#64748b',
+                       transition: 'all 0.2s',
+                       border: 'none', outline: 'none', cursor: 'pointer',
+                       fontWeight: 700, fontSize: '0.75rem',
+                       boxShadow: activeTab === tab.id ? '0 10px 15px -3px rgba(37, 99, 235, 0.2)' : 'none'
+                     }}
+                   >
+                     <tab.icon size={14} /> {tab.label}
+                   </button>
+                 ))}
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {activeTab === 'organigrama' ? (
         <div className="glass-card" style={{ padding: '2rem' }}>
@@ -510,133 +532,39 @@ const Catalog = ({ user }) => {
         <div className="glass-card" style={{ overflow: 'hidden' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
-              {/* Quick Entry Row */}
-              {isAdmin && activeTab !== 'tareas' && activeTab !== 'tareas_aisladas' && (
-                <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
-                  <td style={{ padding: '1rem' }}>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <input 
-                        placeholder="Código..." 
-                        style={{ width: '120px', padding: '0.5rem', borderRadius: '6px', border: '1px solid #cbd5e1' }}
-                        value={formData.code || ''}
-                        onChange={e => setFormData({...formData, code: e.target.value})}
-                      />
-                      <input 
-                        placeholder={`Nuevo(a) ${activeTab.slice(0,-1)}...`} 
-                        style={{ flex: 1, padding: '0.5rem', borderRadius: '6px', border: '1px solid #cbd5e1' }}
-                        value={formData.name || formData.description || ''}
-                        onChange={e => setFormData({...formData, [activeTab === 'resultados' || activeTab === 'ejes' || activeTab === 'estrategias' ? 'description' : 'name']: e.target.value})}
-                      />
-                    </div>
-                  </td>
-                  <td colSpan="8" style={{ padding: '1rem', background: isIsolatedMode ? '#fef2f2' : '#f0f9ff' }}>
-                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                      {isIsolatedMode ? (
-                        <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#ef4444' }}>
-                          <Link2 size={14} style={{ marginRight: '4px' }} /> Registro Aislado (Sin dependencia jerárquica)
-                        </div>
-                      ) : (
-                        <>
-                      {activeTab === 'resultados' && (
-                         <select 
-                           style={{ minWidth: '250px', padding: '0.6rem', borderRadius: '10px', border: '2px solid #3b82f6', background: 'white', fontWeight: 800, color: '#1e40af', outline: 'none', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }} 
-                           value={formData.eje_id || ''} 
-                           onChange={e => setFormData({...formData, eje_id: e.target.value})}
-                         >
-                            <option value="">Vincular a Eje Estratégico...</option>
-                            {ejes.map(e => <option key={e.id} value={e.id}>{e.code}: {e.description?.substring(0, 30)}...</option>)}
-                         </select>
-                      )}
-                      {activeTab === 'estrategias' && (
-                         <select 
-                           style={{ minWidth: '250px', padding: '0.6rem', borderRadius: '10px', border: '2px solid #3b82f6', background: 'white', fontWeight: 800, color: '#1e40af', outline: 'none' }} 
-                           value={formData.resultado_id || ''} 
-                           onChange={e => setFormData({...formData, resultado_id: e.target.value})}
-                         >
-                            <option value="">Vincular a Resultado Padre...</option>
-                            {resultados.map(r => <option key={r.id} value={r.id}>{r.code}: {r.description?.substring(0, 30)}...</option>)}
-                         </select>
-                      )}
-                      {activeTab === 'megas' && (
-                         <select 
-                           style={{ minWidth: '250px', padding: '0.6rem', borderRadius: '10px', border: '2px solid #3b82f6', background: 'white', fontWeight: 800, color: '#1e40af', outline: 'none' }} 
-                           value={formData.estrategia_id || ''} 
-                           onChange={e => setFormData({...formData, estrategia_id: e.target.value})}
-                         >
-                            <option value="">Vincular a Estrategia...</option>
-                            {estrategias.map(es => <option key={es.id} value={es.id}>{es.code}</option>)}
-                         </select>
-                      )}
-                      {activeTab === 'productos' && (
-                         <select 
-                           style={{ minWidth: '250px', padding: '0.6rem', borderRadius: '10px', border: '2px solid #3b82f6', background: 'white', fontWeight: 800, color: '#1e40af', outline: 'none' }} 
-                           value={formData.mega_id || ''} 
-                           onChange={e => setFormData({...formData, mega_id: e.target.value})}
-                         >
-                           <option value="">Vincular a MeGA...</option>
-                           {megas.map(m => <option key={m.id} value={m.id}>{m.code}</option>)}
-                         </select>
-                      )}
-                      {activeTab === 'actividades' && (
-                         <select 
-                           style={{ minWidth: '250px', padding: '0.6rem', borderRadius: '10px', border: '2px solid #3b82f6', background: 'white', fontWeight: 800, color: '#1e40af', outline: 'none' }} 
-                           value={formData.producto_id || ''} 
-                           onChange={e => setFormData({...formData, producto_id: e.target.value})}
-                         >
-                           <option value="">Vincular a Producto...</option>
-                           {productos.map(p => <option key={p.id} value={p.id}>{p.name?.substring(0,40)}...</option>)}
-                         </select>
-                      )}
-                        </>
-                      )}
-                      <button 
-                        onClick={handleSave} 
-                        style={{ 
-                          padding: '0.75rem 1.5rem', 
-                          background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)', 
-                          color: 'white', 
-                          border: 'none', 
-                          borderRadius: '12px', 
-                          fontWeight: 900, 
-                          cursor: 'pointer',
-                          boxShadow: '0 10px 15px -3px rgba(37, 99, 235, 0.3)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.5rem'
-                        }}
-                      >
-                         <Plus size={18} /> Registrar Registro
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              )}
+              {/* Quick Entry Row Removed per Observation 8 */}
               <tr style={{ background: '#f1f5f9', borderBottom: '1px solid #e2e8f0' }}>
                 {(activeTab === 'tareas' || activeTab === 'tareas_aisladas') ? (
                   <>
+                    <th style={{ textAlign: 'left', padding: '1rem', color: '#475569', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase' }}>{isIsolatedMode ? 'FUNCIONARIO' : 'RESPONSABLE'}</th>
                     {activeTab === 'tareas' && !isIsolatedMode && (
                         <>
-                            <th style={{ padding: '1rem', fontSize: '0.65rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase', minWidth: '180px' }}>RESULTADOS PROPUESTOS POR LA INSTITUCIÓN AL 2030 (MeGAs)</th>
-                            <th style={{ padding: '1rem', fontSize: '0.65rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase', minWidth: '180px' }}>PRODUCTOS INTERMEDIOS PROPUESTOS POR LA ENTIDAD (100%)</th>
+                            <th style={{ padding: '1rem', fontSize: '0.65rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase', minWidth: '180px' }}>RESULTADOS</th>
+                            <th style={{ padding: '1rem', fontSize: '0.65rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase', minWidth: '180px' }}>PRODUCTOS</th>
                             <th style={{ padding: '1rem', fontSize: '0.65rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase', minWidth: '180px' }}>ACTIVIDADES A REALIZAR</th>
+                            <th style={{ padding: '1rem', fontSize: '0.65rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase', minWidth: '180px' }}>TAREAS DE CUMPLIMIENTO</th>
                         </>
                     )}
-                    <th style={{ padding: '1rem', fontSize: '0.65rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase', minWidth: '180px' }}>{isIsolatedMode ? 'REGISTRO AISLADO' : 'TAREAS DE CUMPLIMIENTO'}</th>
+                    {isIsolatedMode && (
+                        <>
+                            <th style={{ padding: '1rem', fontSize: '0.65rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase', minWidth: '180px' }}>RESULTADOS</th>
+                            <th style={{ padding: '1rem', fontSize: '0.65rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase', minWidth: '180px' }}>PRODUCTOS</th>
+                            <th style={{ padding: '1rem', fontSize: '0.65rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase', minWidth: '180px' }}>ACTIVIDADES</th>
+                            <th style={{ padding: '1rem', fontSize: '0.65rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase', minWidth: '180px' }}>TAREAS</th>
+                        </>
+                    )}
                     <th style={{ textAlign: 'center', padding: '1rem', color: '#475569', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase' }}>PESO (%)</th>
                     <th style={{ textAlign: 'center', padding: '1rem', color: '#475569', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', minWidth: '110px' }}>INICIO / FIN</th>
                     <th style={{ textAlign: 'center', padding: '1rem', color: '#475569', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase' }}>MEDIO VERIF.</th>
-                    <th style={{ textAlign: 'left', padding: '1rem', color: '#475569', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase' }}>RESPONSABLE</th>
                   </>
                 ) : (
                    <th style={{ padding: '1.25rem', fontSize: '0.75rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase' }}>CÓDIGO / DESCRIPCIÓN</th>
                 )}
                 {activeTab === 'resultados' && <th style={{ padding: '1.25rem', fontSize: '0.75rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase' }}>EJE ESTRATÉGICO</th>}
                 {activeTab === 'estrategias' && <th style={{ padding: '1.25rem', fontSize: '0.75rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase' }}>RESULTADO PADRE</th>}
-                {activeTab === 'megas' && <th style={{ padding: '1.25rem', fontSize: '0.75rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase' }}>ESTRATEGIA VINCULADA</th>}
-                {activeTab === 'productos' && <th style={{ padding: '1.25rem', fontSize: '0.75rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase' }}>MeGA ASOCIADO</th>}
+                {activeTab === 'productos' && <th style={{ padding: '1.25rem', fontSize: '0.75rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase' }}>RESULTADO ASOCIADO</th>}
                 {activeTab === 'actividades' && <th style={{ padding: '1.25rem', fontSize: '0.75rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase' }}>PRODUCTO INTERMEDIO</th>}
-                {activeTab === 'megas' && <th style={{ padding: '1.25rem', fontSize: '0.75rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase' }}>AVANCE FÍSICO</th>}
-                {activeTab === 'productos' && <th style={{ padding: '1.25rem', fontSize: '0.75rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase' }}>PESO % MeGA</th>}
+                {activeTab === 'productos' && <th style={{ padding: '1.25rem', fontSize: '0.75rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase' }}>PESO % RESULTADO</th>}
                 {(activeTab === 'tareas' || activeTab === 'tareas_aisladas') && <th style={{ padding: '1.25rem', fontSize: '0.75rem', color: '#475569', fontWeight: 800, textTransform: 'uppercase' }}>SEGUIMIENTO / AVANCE</th>}
                 {isAdmin && <th style={{ padding: '1.25rem', fontSize: '0.75rem', color: '#475569', fontWeight: 800, textAlign: 'right', textTransform: 'uppercase' }}>ACCIONES</th>}
               </tr>
@@ -650,6 +578,18 @@ const Catalog = ({ user }) => {
                 <tr><td colSpan="15" style={{ padding: '3rem', textAlign: 'center', color: '#64748b' }}>No se encontraron coincidencias</td></tr>
               ) : filteredData.map((item, idx) => (
                 <tr key={item.id} style={{ borderBottom: '1px solid #f1f5f9', fontSize: '0.8rem' }}>
+                    {(activeTab === 'tareas' || activeTab === 'tareas_aisladas') && (
+                      <>
+                        {(!isIsolatedMode || (rowSpans['responsable_nombre'] && rowSpans['responsable_nombre'][idx] > 0)) && (
+                          <td rowSpan={isIsolatedMode ? rowSpans['responsable_nombre'][idx] : 1} style={{ padding: '1rem', color: '#475569', fontWeight: 700, borderRight: isIsolatedMode ? '1px solid #f1f5f9' : 'none', verticalAlign: isIsolatedMode ? 'top' : 'middle', background: isIsolatedMode ? 'white' : 'transparent' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                               <span>{item.responsable_nombre || '---'}</span>
+                               <span style={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: 500 }}>{item.responsable_cargo || '---'}</span>
+                            </div>
+                          </td>
+                        )}
+                      </>
+                    )}
                     {activeTab === 'tareas' && !isIsolatedMode && (
                       <>
                          {rowSpans['mega_name'] && rowSpans['mega_name'][idx] > 0 && (
@@ -665,13 +605,15 @@ const Catalog = ({ user }) => {
                          <td style={{ padding: '1rem', color: '#64748b' }}>{item.actividad_name}</td>
                       </>
                     )}
-                    <td style={{ padding: '1.25rem' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                        {item.code && <span style={{ fontSize: '0.7rem', color: '#3b82f6', fontWeight: 900 }}>{item.code}</span>}
-                        <span style={{ fontWeight: 600, color: '#1e293b' }}>{item.description || item.name}</span>
-                        {activeTab === 'megas' && <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Unidad: {item.unit_name || 'N/A'}</div>}
-                      </div>
-                    </td>
+                    {activeTab !== 'tareas' && activeTab !== 'tareas_aisladas' && (
+                      <td style={{ padding: '1.25rem' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                          {item.code && <span style={{ fontSize: '0.7rem', color: '#3b82f6', fontWeight: 900 }}>{item.code}</span>}
+                          <span style={{ fontWeight: 600, color: '#1e293b' }}>{item.description || item.name}</span>
+                          {activeTab === 'megas' && <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Unidad: {item.unit_name || 'N/A'}</div>}
+                        </div>
+                      </td>
+                    )}
                   {activeTab === 'resultados' && (
                     <td style={{ padding: '1.25rem', fontSize: '0.85rem', color: '#64748b' }}>
                       <span style={{ background: '#fef3c7', padding: '0.3rem 0.75rem', borderRadius: '8px', fontWeight: 800, color: '#92400e', border: '1px solid #fde68a' }}>
@@ -686,13 +628,7 @@ const Catalog = ({ user }) => {
                       </span>
                     </td>
                   )}
-                  {activeTab === 'megas' && (
-                    <td style={{ padding: '1.25rem', fontSize: '0.85rem', color: '#64748b' }}>
-                      <span style={{ background: '#dcfce7', padding: '0.3rem 0.75rem', borderRadius: '8px', fontWeight: 800, color: '#166534', border: '1px solid #bbf7d0' }}>
-                        {estrategias.find(es => Number(es.id) === Number(item.estrategia_id))?.code || 'S/V'}
-                      </span>
-                    </td>
-                  )}
+
                   {activeTab === 'productos' && (
                     <td style={{ padding: '1.25rem', fontSize: '0.85rem', color: '#64748b' }}>
                        {item.mega_name || '---'}
@@ -705,12 +641,49 @@ const Catalog = ({ user }) => {
                   )}
                   {(activeTab === 'tareas' || activeTab === 'tareas_aisladas') && (
                     <>
-                      <td style={{ padding: '1rem', color: '#1e293b', fontWeight: 700 }}>
-                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                           <span style={{ fontSize: '0.65rem', color: '#64748b' }}>{item.code} {item.is_hitos_mode ? '🎯 (Hitos)' : ''}</span>
-                           {item.name}
-                        </div>
-                      </td>
+                      {isIsolatedMode ? (
+                         <>
+                           <td style={{ padding: '1rem' }}>
+                              {item.tipo_aislado === 'Resultado' && (
+                                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                   <span style={{ fontSize: '0.65rem', color: '#64748b' }}>{item.code} {item.is_hitos_mode ? '🎯 (Hitos)' : ''}</span>
+                                   <span style={{ color: '#1e293b', fontWeight: 700 }}>{item.name}</span>
+                                </div>
+                              )}
+                           </td>
+                           <td style={{ padding: '1rem' }}>
+                              {item.tipo_aislado === 'Producto' && (
+                                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                   <span style={{ fontSize: '0.65rem', color: '#64748b' }}>{item.code} {item.is_hitos_mode ? '🎯 (Hitos)' : ''}</span>
+                                   <span style={{ color: '#1e293b', fontWeight: 700 }}>{item.name}</span>
+                                </div>
+                              )}
+                           </td>
+                           <td style={{ padding: '1rem' }}>
+                              {item.tipo_aislado === 'Actividad' && (
+                                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                   <span style={{ fontSize: '0.65rem', color: '#64748b' }}>{item.code} {item.is_hitos_mode ? '🎯 (Hitos)' : ''}</span>
+                                   <span style={{ color: '#1e293b', fontWeight: 700 }}>{item.name}</span>
+                                </div>
+                              )}
+                           </td>
+                           <td style={{ padding: '1rem' }}>
+                              {item.tipo_aislado === 'Tarea' && (
+                                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                   <span style={{ fontSize: '0.65rem', color: '#64748b' }}>{item.code} {item.is_hitos_mode ? '🎯 (Hitos)' : ''}</span>
+                                   <span style={{ color: '#1e293b', fontWeight: 700 }}>{item.name}</span>
+                                </div>
+                              )}
+                           </td>
+                         </>
+                      ) : (
+                         <td style={{ padding: '1rem', color: '#1e293b', fontWeight: 700 }}>
+                           <div style={{ display: 'flex', flexDirection: 'column' }}>
+                              <span style={{ fontSize: '0.65rem', color: '#64748b' }}>{item.code} {item.is_hitos_mode ? '🎯 (Hitos)' : ''}</span>
+                              {item.name}
+                           </div>
+                         </td>
+                      )}
                       <td style={{ padding: '1rem', color: '#2563eb', fontWeight: 900, textAlign: 'center' }}>
                         {parseFloat(item.ponderacion_producto || 0).toFixed(1)}%
                       </td>
@@ -729,12 +702,6 @@ const Catalog = ({ user }) => {
                         ) : (
                           item.medio_verificacion || '---'
                         )}
-                      </td>
-                      <td style={{ padding: '1rem', color: '#475569', fontWeight: 700 }}>
-                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                           <span>{item.responsable_nombre || '---'}</span>
-                           <span style={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: 500 }}>{item.responsable_cargo || '---'}</span>
-                        </div>
                       </td>
                       <td style={{ padding: '1rem' }}>
                          <div style={{ display: 'flex', gap: '0.4rem', overflowX: 'auto', maxWidth: '300px', paddingBottom: '0.5rem' }}>
@@ -795,39 +762,13 @@ const Catalog = ({ user }) => {
                       )}
                     </>
                   )}
-                  {activeTab === 'megas' && (
-                    <td style={{ padding: '1.25rem' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                          <span style={{ fontSize: '0.65rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>Ejecución Real</span>
-                          <div style={{ flex: 1, height: '8px', background: '#f1f5f9', borderRadius: '100px', minWidth: '100px', overflow: 'hidden' }}>
-                            <motion.div 
-                              initial={{ width: 0 }}
-                              animate={{ width: `${parseFloat(item.avance_fisico || 0)}%` }}
-                              style={{ 
-                                height: '100%', 
-                                background: 'linear-gradient(90deg, #10b981, #34d399)',
-                                borderRadius: '100px'
-                              }} 
-                            />
-                          </div>
-                          <span style={{ fontSize: '0.85rem', fontWeight: 900, color: '#111827' }}>{parseFloat(item.avance_fisico || 0).toFixed(1)}%</span>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                          <span style={{ fontSize: '0.6rem', color: '#94a3b8', fontWeight: 600 }}>Planificación:</span>
-                          <span style={{ fontSize: '0.6rem', fontWeight: 800, color: item.current_weighting >= 100 ? '#059669' : '#3b82f6' }}>
-                             {item.current_weighting >= 100 ? 'Estructura Completa (100%)' : `${parseFloat(item.current_weighting || 0).toFixed(0)}% definida`}
-                          </span>
-                        </div>
-                      </div>
-                    </td>
-                  )}
+
                   {activeTab === 'productos' && (
                     <td style={{ padding: '1.25rem', fontSize: '0.85rem', fontWeight: 700, color: '#475569' }}>
                       {parseFloat(item.ponderacion_total || 0).toFixed(1)}%
                     </td>
                   )}
-                  {isAdmin && activeTab !== 'organigrama' && (
+                  {isAdmin && activeTab !== 'organigrama' && activeTab !== 'tareas' && activeTab !== 'tareas_aisladas' && (
                     <td style={{ padding: '1.25rem', textAlign: 'right' }}>
                       <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
                         <button 
@@ -923,7 +864,7 @@ const Catalog = ({ user }) => {
 
                         {activeTab === 'productos' && (
                           <select required={!isIsolatedMode} style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '2px solid #3b82f6', fontWeight: 700 }} value={formData.mega_id || ''} onChange={e => setFormData({...formData, mega_id: e.target.value})}>
-                            <option value="">Vincular a MeGA (Resultado)...</option>
+                            <option value="">Vincular a Resultado...</option>
                             {megas.map(m => <option key={m.id} value={m.id}>{m.code}: {m.name?.substring(0,60)}...</option>)}
                           </select>
                         )}
@@ -939,7 +880,18 @@ const Catalog = ({ user }) => {
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '150px 1fr', gap: '1.5rem' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: isIsolatedMode ? '150px 150px 1fr' : '150px 1fr', gap: '1.5rem' }}>
+                      {isIsolatedMode && (
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, marginBottom: '0.6rem', color: '#475569' }}>Clasificación</label>
+                          <select required style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '2px solid #8b5cf6', background: '#f5f3ff', fontWeight: 900, color: '#5b21b6' }} value={formData.tipo_aislado || 'Tarea'} onChange={e => setFormData({...formData, tipo_aislado: e.target.value})}>
+                            <option value="Resultado">Resultado</option>
+                            <option value="Producto">Producto</option>
+                            <option value="Actividad">Actividad</option>
+                            <option value="Tarea">Tarea</option>
+                          </select>
+                        </div>
+                      )}
                       <div>
                         <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, marginBottom: '0.6rem', color: '#475569' }}>Código / ID</label>
                         <input required placeholder="T-01" style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '2px solid #3b82f6', background: '#eff6ff', fontWeight: 900, fontSize: '1.1rem', color: '#1e40af' }} value={formData.code || ''} onChange={e => setFormData({...formData, code: e.target.value})} />
@@ -1079,15 +1031,7 @@ const Catalog = ({ user }) => {
                       </div>
                     </div>
 
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, marginBottom: '0.6rem', color: '#475569' }}>Indicador de Cumplimiento</label>
-                      <input placeholder="Ej: Número de informes emitidos, Porcentaje de avance..." style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '1px solid #cbd5e1' }} value={formData.indicador || ''} onChange={e => setFormData({...formData, indicador: e.target.value})} />
-                    </div>
 
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, marginBottom: '0.6rem', color: '#475569' }}>Resultado esperado al concluir</label>
-                      <textarea placeholder="Descripción del producto o impacto final..." style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '1px solid #cbd5e1', resize: 'none' }} value={formData.resultado_esperado || ''} onChange={e => setFormData({...formData, resultado_esperado: e.target.value})} />
-                    </div>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                       <label style={{ fontSize: '0.9rem', fontWeight: 800, color: '#1e293b' }}>¿Vinculado al POA?</label>
@@ -1150,7 +1094,7 @@ const Catalog = ({ user }) => {
              <div style={{ background: '#f8fafc', padding: '2rem', borderRadius: '24px', border: '1px solid #e2e8f0', marginBottom: '2rem' }}>
                 {wizardStep === 1 && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                    <h3 style={{ margin: 0, color: '#1e40af' }}>1. Configuración de MeGA (Resultado)</h3>
+                    <h3 style={{ margin: 0, color: '#1e40af' }}>1. Configuración de Resultado</h3>
                     <select required style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '1px solid #cbd5e1' }} value={wizardData.mega.estrategia_id || ''} onChange={e => setWizardData({...wizardData, mega: {...wizardData.mega, estrategia_id: e.target.value}})}>
                       <option value="">Seleccionar Estratégica Institucional...</option>
                       {estrategias.map(es => <option key={es.id} value={es.id}>{es.code}: {es.description?.substring(0,80)}...</option>)}

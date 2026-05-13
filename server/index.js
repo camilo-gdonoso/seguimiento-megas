@@ -195,6 +195,7 @@ const initDb = async () => {
             ALTER TABLE tareas ADD COLUMN IF NOT EXISTS tipo_avance VARCHAR(20) DEFAULT 'Semanal';
             ALTER TABLE tareas ADD COLUMN IF NOT EXISTS planograma JSONB;
             ALTER TABLE tareas ADD COLUMN IF NOT EXISTS ponderacion_producto DECIMAL(5,2) DEFAULT 0.00;
+            ALTER TABLE tareas ADD COLUMN IF NOT EXISTS tipo_aislado VARCHAR(50) DEFAULT 'Tarea';
         `);
         await pool.query(`CREATE TABLE IF NOT EXISTS tareas (
             id SERIAL PRIMARY KEY, 
@@ -220,7 +221,8 @@ const initDb = async () => {
             is_isolated BOOLEAN DEFAULT FALSE,
             is_hitos_mode BOOLEAN DEFAULT FALSE,
             hitos_total INTEGER DEFAULT 0,
-            hitos_completados INTEGER DEFAULT 0
+            hitos_completados INTEGER DEFAULT 0,
+            tipo_aislado VARCHAR(50) DEFAULT 'Tarea'
         )`);
         await pool.query('CREATE TABLE IF NOT EXISTS avances_semanales (id SERIAL PRIMARY KEY, tarea_id INTEGER REFERENCES tareas(id) ON DELETE CASCADE, semana INTEGER NOT NULL, avance_real DECIMAL(5,2) DEFAULT 0.00, observacion TEXT, evidencia_url TEXT, estado VARCHAR(20) DEFAULT \'Reportado\', UNIQUE(tarea_id, semana))');
         await pool.query('CREATE TABLE IF NOT EXISTS auditoria (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES usuarios(id) ON DELETE SET NULL, action TEXT NOT NULL, table_name TEXT NOT NULL, record_id INTEGER, old_data JSONB, new_data JSONB, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)');
@@ -307,10 +309,13 @@ const registerCrud = (resource, tableName) => {
     const filterValidFields = (body) => {
         const forbiddenPrefixes = ['current_', 'unit_', 'estrategia_', 'resultado_', 'eje_'];
         const forbiddenSuffixes = ['_name', '_code', '_unidad'];
+        const exactForbidden = ['avances', 'avances_historico', 'estado_calculado'];
 
         return Object.keys(body).filter(key => {
             // ALWAYS allow relational IDs
             if (key.endsWith('_id')) return true;
+            // Exact forbidden match
+            if (exactForbidden.includes(key)) return false;
             // Never try to update columns that look like they come from a JOIN or calculation
             if (forbiddenSuffixes.some(s => key.endsWith(s))) return false;
             if (forbiddenPrefixes.some(p => key.startsWith(p))) return false;
