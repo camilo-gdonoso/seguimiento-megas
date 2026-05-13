@@ -465,7 +465,21 @@ const Monitoring = ({ user }) => {
                       <td style={{ textAlign: 'center', fontSize: '0.7rem', color: '#94a3b8' }}>
                          {row.medio_verificacion || '--'}
                       </td>
-                      
+                      <td style={{ textAlign: 'center', padding: '0.75rem', width: '120px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', fontWeight: 900, color: '#2563eb' }}>
+                            <span>{(parseFloat(row.avance_fisico || 0)).toFixed(1)}%</span>
+                          </div>
+                          <div style={{ width: '100%', height: '6px', background: '#f1f5f9', borderRadius: '3px', overflow: 'hidden', border: '1px solid #e2e8f0' }}>
+                            <div 
+                              style={{ 
+                                width: `${Math.min(100, (parseFloat(row.avance_fisico || 0) / parseFloat(row.ponderacion_producto || 100)) * 100)}%`, 
+                                height: '100%', 
+                                background: 'linear-gradient(90deg, #3b82f6 0%, #2563eb 100%)',
+                                borderRadius: '3px'
+                              }} 
+                            />
+                          </div>
                         </div>
                       </td>
                     </motion.tr>
